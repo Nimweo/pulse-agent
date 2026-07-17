@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GoProfileHistory">
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_pulse-agent_cmd_agent-heap_with_gc-2026-07-17-185557-352.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1784307348130" />
+        <option name="file" value="go_build_pulse-agent_cmd_agent-heap_with_gc-2026-07-17-185557-352.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="HEAP_GC" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_pulse-agent_cmd_agent-allocs-2026-07-17-185625-830.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1784307348130" />
+        <option name="file" value="go_build_pulse-agent_cmd_agent-allocs-2026-07-17-185625-830.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="ALLOCS" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_pulse-agent_cmd_agent-goroutine-2026-07-17-185628-828.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1784307348130" />
+        <option name="file" value="go_build_pulse-agent_cmd_agent-goroutine-2026-07-17-185628-828.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="GOROUTINE" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_pulse-agent_cmd_agent-cpu-2026-07-17-185633-689.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1784307348130" />
+        <option name="file" value="go_build_pulse-agent_cmd_agent-cpu-2026-07-17-185633-689.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="CPU" />
+      </GoProfileMapEntry>
+    </profile>
+  </component>
+</project>
