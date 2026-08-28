@@ -33,6 +33,38 @@ func (b *Batch) AddSample(core model.CoreSample, points []model.Point) {
 	b.points = append(b.points, points...)
 }
 
+func (b *Batch) AddPoints(points []model.Point) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.points = append(b.points, points...)
+}
+
+func newPoint(timestamp int64, metric string, device string, value float64) model.Point {
+	return model.Point{
+		Time:   timestamp,
+		Metric: metric,
+		Device: device,
+		Value:  value,
+	}
+}
+
+func appendCounterRate(
+	points []model.Point,
+	timestamp int64,
+	metric string,
+	device string,
+	current uint64,
+	previous uint64,
+	seconds float64,
+) []model.Point {
+	if current < previous {
+		return points
+	}
+
+	value := float64(current-previous) / seconds
+	return append(points, newPoint(timestamp, metric, device, value))
+}
+
 // Drain returns all collected data and clears the buffer before sending.
 func (b *Batch) Drain() ([]model.CoreSample, []model.Point) {
 	b.mu.Lock()
@@ -53,7 +85,7 @@ type Collector interface {
 func Default() []Collector {
 	return []Collector{
 		NewCore(false, time.Second),
-		//&diskCollector{},
+		NewDisk(time.Second),
 		//newNetCollector(),
 	}
 }

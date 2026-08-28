@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -38,13 +39,25 @@ func main() {
 		time.Duration(cfg.Server.Timeout)*time.Second,
 	)
 	batch := &collector.Batch{}
-	core := collector.NewCore(
-		cfg.Collectors.CPU.PerCPU,
-		time.Duration(cfg.Intervals.Collect)*time.Second,
-	)
+	collectors := []collector.Collector{
+		collector.NewCore(
+			cfg.Collectors.CPU.PerCPU,
+			time.Duration(cfg.Intervals.Collect)*time.Second,
+		),
+	}
+	if cfg.Collectors.Disk.Enabled {
+		collectors = append(
+			collectors,
+			collector.NewDisk(time.Duration(cfg.Collectors.Disk.Interval)*time.Second),
+		)
+	}
 
-	collectTick := time.NewTicker(time.Duration(cfg.Intervals.Collect) * time.Second)
-	defer collectTick.Stop()
+	var collectorWorkers sync.WaitGroup
+	for _, metricCollector := range collectors {
+		collectorWorkers.Add(1)
+		go runCollector(ctx, &collectorWorkers, metricCollector, batch)
+	}
+
 	sendTick := time.NewTicker(time.Duration(cfg.Intervals.Send) * time.Second)
 	defer sendTick.Stop()
 
@@ -54,12 +67,8 @@ func main() {
 		select {
 		case <-ctx.Done():
 			slog.Info("shutting down")
+			collectorWorkers.Wait()
 			return
-
-		case <-collectTick.C:
-			if err := core.Collect(ctx, batch); err != nil {
-				slog.Error("collect", "err", err)
-			}
 
 		case <-sendTick.C:
 			cs, ps := batch.Drain()
@@ -77,6 +86,37 @@ func main() {
 				continue // Samples are dropped until disk spooling is implemented.
 			}
 			slog.Info("metrics sent", "core", len(cs), "points", len(ps))
+		}
+	}
+}
+
+func runCollector(
+	ctx context.Context,
+	workers *sync.WaitGroup,
+	metricCollector collector.Collector,
+	batch *collector.Batch,
+) {
+	defer workers.Done()
+
+	ticker := time.NewTicker(metricCollector.Interval())
+	defer ticker.Stop()
+	collect := func() {
+		if err := metricCollector.Collect(ctx, batch); err != nil {
+			slog.Error(
+				"metric collection failed",
+				"collector", metricCollector.Name(),
+				"err", err,
+			)
+		}
+	}
+	collect()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			collect()
 		}
 	}
 }
