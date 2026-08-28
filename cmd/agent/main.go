@@ -39,12 +39,19 @@ func main() {
 		time.Duration(cfg.Server.Timeout)*time.Second,
 	)
 	batch := &collector.Batch{}
-	collectors := []collector.Collector{
+	collectors := make([]collector.Collector, 0, 4)
+	if cfg.Collectors.System.Enabled {
+		collectors = append(
+			collectors,
+			collector.NewSystem(time.Duration(cfg.Collectors.System.Interval)*time.Second),
+		)
+	}
+	collectors = append(collectors,
 		collector.NewCore(
 			cfg.Collectors.CPU.PerCPU,
 			time.Duration(cfg.Intervals.Collect)*time.Second,
 		),
-	}
+	)
 	if cfg.Collectors.Disk.Enabled {
 		collectors = append(
 			collectors,
@@ -77,13 +84,14 @@ func main() {
 			return
 
 		case <-sendTick.C:
-			cs, ps := batch.Drain()
-			if len(cs) == 0 && len(ps) == 0 {
+			system, cs, ps := batch.Drain()
+			if system == nil && len(cs) == 0 && len(ps) == 0 {
 				continue
 			}
 			payload := model.Payload{
 				AgentVersion: cfg.Agent.Version,
 				Hostname:     hostname,
+				System:       system,
 				Core:         cs,
 				Points:       ps,
 			}

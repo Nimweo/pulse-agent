@@ -18,8 +18,9 @@ type Point struct {
 }
 
 type Payload struct {
-	AgentVersion string       `json:"agent_version"`
-	Hostname     string       `json:"hostname"`
-	Core         []CoreSample `json:"core,omitempty"`
-	Points       []Point      `json:"points,omitempty"`
+	AgentVersion string        `json:"agent_version"`
+	Hostname     string        `json:"hostname"`
+	System       *SystemSample `json:"system,omitempty"`
+	Core         []CoreSample  `json:"core,omitempty"`
+	Points       []Point       `json:"points,omitempty"`
 }

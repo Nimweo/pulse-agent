@@ -10,8 +10,15 @@ import (
 
 type Batch struct {
 	mu     sync.Mutex
+	system *model.SystemSample
 	core   []model.CoreSample
 	points []model.Point
+}
+
+func (b *Batch) SetSystem(system model.SystemSample) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.system = &system
 }
 
 func (b *Batch) AddCore(core model.CoreSample) {
@@ -65,15 +72,17 @@ func appendCounterRate(
 	return append(points, newPoint(timestamp, metric, device, value))
 }
 
-// Drain returns all collected data and clears the buffer before sending.
-func (b *Batch) Drain() ([]model.CoreSample, []model.Point) {
+// Drain returns the latest system snapshot and all buffered metrics.
+// The system snapshot is retained so it can be included in every payload.
+func (b *Batch) Drain() (*model.SystemSample, []model.CoreSample, []model.Point) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	core, points := b.core, b.points
+	system, core, points := b.system, b.core, b.points
+
 	b.core, b.points = nil, nil
 
-	return core, points
+	return system, core, points
 }
 
 type Collector interface {
@@ -84,6 +93,7 @@ type Collector interface {
 
 func Default() []Collector {
 	return []Collector{
+		NewSystem(time.Minute),
 		NewCore(false, time.Second),
 		NewDisk(time.Second),
 		NewNetwork(time.Second),
