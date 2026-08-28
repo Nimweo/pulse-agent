@@ -116,6 +116,23 @@ server: { base_url: "https://pulse.test/api/", timeout: 10 }
 	}
 }
 
+func TestLoadRejectsAgentVersionOverride(t *testing.T) {
+	path := writeConfig(t, strings.Replace(
+		validConfig(""),
+		"configured: true",
+		"configured: true\nversion: \"999.0.0\"",
+		1,
+	))
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("Load() error = nil, want unknown version field error")
+	}
+	if !strings.Contains(err.Error(), "field version not found") {
+		t.Fatalf("Load() error = %q, want unknown version field error", err)
+	}
+}
+
 func TestLoadParsesConfigWithOptionalAPIKey(t *testing.T) {
 	path := writeConfig(t, validConfig(""))
 
