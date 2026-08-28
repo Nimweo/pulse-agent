@@ -1,0 +1,82 @@
+# Pulse Agent Configuration Example
+# Copy this file to configs/config.yaml and customize as needed
+
+# Server configuration
+server:
+  # Ingest endpoint URL where metrics will be sent
+  url: "https://pulse.test/api/"
+  # API key for authentication
+  api_key: "YOUR_API_KEY"
+  # Request timeout in seconds
+  timeout: 10
+
+# Agent identification
+agent:
+  # Override system hostname (optional, uses os.Hostname() if not set)
+  hostname: ""
+  # Agent version identifier
+  version: "dev"
+
+# Collection intervals
+intervals:
+  # How often to collect metrics (in seconds)
+  collect: 1
+  # How often to send batched metrics to server (in seconds)
+  send: 60
+
+# Logging configuration
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+  # Log format: text, json
+  format: "text"
+
+# Collectors configuration
+collectors:
+  # Operating system, kernel, uptime, virtualization, and CPU topology
+  system:
+    enabled: true
+    interval: 60
+
+  # Load metrics
+  load:
+    enabled: true
+    interval: 1  # seconds
+
+  # CPU metrics
+  cpu:
+    enabled: true
+    interval: 1
+    # Collect usage for each logical CPU in addition to total usage
+    per_cpu: false
+
+  # Memory and swap metrics
+  memory:
+    enabled: true
+    interval: 1
+
+  # Filesystem usage and disk I/O metrics
+  disk:
+    enabled: true
+    interval: 1
+
+  # Network throughput, packet, error, and drop metrics
+  network:
+    enabled: true
+    interval: 1
+
+# Transport configuration
+transport:
+  # Enable gzip compression for outgoing requests
+  compression: true
+  # Maximum retry attempts on send failure
+  max_retries: 3
+  # Retry backoff in seconds
+  retry_backoff: 5
+
+# Buffer configuration
+buffer:
+  # Maximum number of samples to keep in memory before forced send
+  max_size: 10000
+  # Enable disk spool for failed sends (not yet implemented)
+  disk_spool_enabled: false
