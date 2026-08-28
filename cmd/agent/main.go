@@ -2,220 +2,61 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
-	"time"
 
-	"github.com/nimweo/pulse-agent/internal/collector"
+	"github.com/nimweo/pulse-agent/internal/app"
 	"github.com/nimweo/pulse-agent/internal/config"
-	"github.com/nimweo/pulse-agent/internal/model"
-	"github.com/nimweo/pulse-agent/internal/transport"
 )
 
-var version = "0.7.0"
+const version = "0.7.0"
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("agent stopped", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	configFlag := flag.String("config", "", "path to the configuration file")
 	flag.Parse()
 
 	configPath, err := config.ResolvePath(*configFlag)
 	if err != nil {
-		slog.Error("failed to resolve configuration path", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("resolve configuration path: %w", err)
 	}
 
 	created, err := config.Ensure(configPath)
 	if err != nil {
-		slog.Error("failed to prepare configuration", "path", configPath, "err", err)
-		os.Exit(1)
+		return fmt.Errorf("prepare configuration at %q: %w", configPath, err)
 	}
 	if created {
-		slog.Error(
-			"configuration file created; update its settings and set configured to true",
-			"path", configPath,
+		return fmt.Errorf(
+			"configuration file created at %q; update its settings and set configured to true",
+			configPath,
 		)
-		os.Exit(1)
 	}
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		if errors.Is(err, config.ErrNotConfigured) {
-			slog.Error(
-				"agent is not configured; update the configuration file and set configured to true",
-				"path", configPath,
+			return fmt.Errorf(
+				"agent is not configured; update %q and set configured to true: %w",
+				configPath,
+				err,
 			)
-		} else {
-			slog.Error("failed to load configuration", "path", configPath, "err", err)
 		}
-		os.Exit(1)
+		return fmt.Errorf("load configuration from %q: %w", configPath, err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	hostname := cfg.Agent.Hostname
-	if hostname == "" {
-		hostname, err = os.Hostname()
-		if err != nil {
-			slog.Error("failed to read hostname", "err", err)
-			os.Exit(1)
-		}
-	}
-
-	client, err := transport.New(cfg.Server, cfg.Transport)
-	if err != nil {
-		slog.Error("failed to configure API client", "err", err)
-		os.Exit(1)
-	}
-	if err := client.CheckHealth(ctx); err != nil {
-		slog.Error("API health check failed", "base_url", cfg.Server.BaseURL, "err", err)
-		os.Exit(1)
-	}
-
-	batch := &collector.Batch{}
-	collectors := make([]collector.Collector, 0, 5)
-	if cfg.Collectors.System.Enabled {
-		collectors = append(
-			collectors,
-			collector.NewSystem(time.Duration(cfg.Collectors.System.Interval)*time.Second),
-		)
-	}
-	collectors = append(collectors,
-		collector.NewCore(
-			cfg.Collectors.CPU.PerCPU,
-			time.Duration(cfg.Intervals.Collect)*time.Second,
-		),
-	)
-	if cfg.Collectors.Disk.Enabled {
-		collectors = append(
-			collectors,
-			collector.NewDisk(time.Duration(cfg.Collectors.Disk.Interval)*time.Second),
-		)
-	}
-	if cfg.Collectors.Network.Enabled {
-		collectors = append(
-			collectors,
-			collector.NewNetwork(time.Duration(cfg.Collectors.Network.Interval)*time.Second),
-		)
-	}
-	if cfg.Collectors.GPU.Enabled {
-		collectors = append(
-			collectors,
-			collector.NewGPU(time.Duration(cfg.Collectors.GPU.Interval)*time.Second),
-		)
-	}
-
-	var collectorWorkers sync.WaitGroup
-	for _, metricCollector := range collectors {
-		collectorWorkers.Add(1)
-		go runCollector(ctx, &collectorWorkers, metricCollector, batch)
-	}
-
-	sendTick := time.NewTicker(time.Duration(cfg.Intervals.Send) * time.Second)
-	defer sendTick.Stop()
-
-	slog.Info("agent started")
-
-	for {
-		select {
-		case <-ctx.Done():
-			slog.Info("shutting down")
-			collectorWorkers.Wait()
-			return
-
-		case <-sendTick.C:
-			system, cs, ps := batch.Drain()
-			if system == nil && len(cs) == 0 && len(ps) == 0 {
-				continue
-			}
-			payload, err := buildPayload(version, hostname, system, cs, ps)
-			if err != nil {
-				slog.Error("failed to create metric payload", "err", err)
-				continue
-			}
-			if err := client.Send(ctx, payload); err != nil {
-				slog.Error(
-					"failed to send metrics",
-					"batch_id", payload.BatchID,
-					"err", err,
-					"dropped", len(cs)+len(ps),
-				)
-				continue // Samples are dropped until disk spooling is implemented.
-			}
-			slog.Info(
-				"metrics sent",
-				"batch_id", payload.BatchID,
-				"core", len(cs),
-				"points", len(ps),
-			)
-		}
-	}
-}
-
-func buildPayload(
-	agentVersion string,
-	hostname string,
-	system *model.SystemSample,
-	core []model.CoreSample,
-	points []model.Point,
-) (model.Payload, error) {
-	batchID := make([]byte, 16)
-	if _, err := rand.Read(batchID); err != nil {
-		return model.Payload{}, err
-	}
-	if core == nil {
-		core = []model.CoreSample{}
-	}
-	if points == nil {
-		points = []model.Point{}
-	}
-
-	return model.Payload{
-		SchemaVersion: model.PayloadSchemaVersion,
-		BatchID:       hex.EncodeToString(batchID),
-		SentAt:        time.Now().UnixMilli(),
-		AgentVersion:  agentVersion,
-		Hostname:      hostname,
-		System:        system,
-		Core:          core,
-		Points:        points,
-	}, nil
-}
-
-func runCollector(
-	ctx context.Context,
-	workers *sync.WaitGroup,
-	metricCollector collector.Collector,
-	batch *collector.Batch,
-) {
-	defer workers.Done()
-
-	ticker := time.NewTicker(metricCollector.Interval())
-	defer ticker.Stop()
-	collect := func() {
-		if err := metricCollector.Collect(ctx, batch); err != nil {
-			slog.Error(
-				"metric collection failed",
-				"collector", metricCollector.Name(),
-				"err", err,
-			)
-		}
-	}
-	collect()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			collect()
-		}
-	}
+	return app.Run(ctx, cfg, version)
 }
