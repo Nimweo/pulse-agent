@@ -14,7 +14,7 @@ import (
 	"github.com/nimweo/pulse-agent/internal/config"
 )
 
-const version = "0.8.0"
+const version = "0.9.0"
 
 func main() {
 	if err := run(); err != nil {
