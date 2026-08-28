@@ -17,7 +17,7 @@ import (
 	"github.com/nimweo/pulse-agent/internal/transport"
 )
 
-var version = "0.2.0"
+var version = "0.3.0"
 
 func main() {
 	configFlag := flag.String("config", "", "path to the configuration file")
