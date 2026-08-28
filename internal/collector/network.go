@@ -22,29 +22,37 @@ const (
 )
 
 type networkCollector struct {
-	interval time.Duration
-	lastIO   map[string]gopsutilnet.IOCountersStat
-	lastIOAt time.Time
+	interval       time.Duration
+	lastIO         map[string]gopsutilnet.IOCountersStat
+	lastIOAt       time.Time
+	now            func() time.Time
+	readInterfaces func(context.Context) (gopsutilnet.InterfaceStatList, error)
+	readIOCounters func(context.Context, bool) ([]gopsutilnet.IOCountersStat, error)
 }
 
 func NewNetwork(interval time.Duration) Collector {
-	return &networkCollector{interval: interval}
+	return &networkCollector{
+		interval:       interval,
+		now:            time.Now,
+		readInterfaces: gopsutilnet.InterfacesWithContext,
+		readIOCounters: gopsutilnet.IOCountersWithContext,
+	}
 }
 
 func (c *networkCollector) Name() string            { return "network" }
 func (c *networkCollector) Interval() time.Duration { return c.interval }
 
 func (c *networkCollector) Collect(ctx context.Context, out *Batch) error {
-	collectedAt := time.Now()
+	collectedAt := c.now()
 	timestamp := collectedAt.UnixMilli()
 
-	interfaces, err := gopsutilnet.InterfacesWithContext(ctx)
+	interfaces, err := c.readInterfaces(ctx)
 	if err != nil {
 		return fmt.Errorf("list network interfaces: %w", err)
 	}
 	nonLoopback := nonLoopbackInterfaceNames(interfaces)
 
-	counters, err := gopsutilnet.IOCountersWithContext(ctx, true)
+	counters, err := c.readIOCounters(ctx, true)
 	if err != nil {
 		return fmt.Errorf("read network I/O counters: %w", err)
 	}

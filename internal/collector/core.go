@@ -14,23 +14,27 @@ type coreCollector struct {
 	interval    time.Duration
 	lastMemory  memoryStats
 	lastMemRead time.Time
+	readCPU     func(context.Context, bool) (float64, []float64, error)
+	readMemory  func(context.Context) (memoryStats, error)
+	readLoad    func(context.Context) (float64, float64, float64, error)
+	now         func() time.Time
 }
 
 func (c *coreCollector) Name() string            { return "core" }
 func (c *coreCollector) Interval() time.Duration { return c.interval }
 
 func (c *coreCollector) Collect(ctx context.Context, out *Batch) error {
-	cpuPct, logicalCPUPct, err := readCPU(ctx, c.perCPU)
+	cpuPct, logicalCPUPct, err := c.readCPU(ctx, c.perCPU)
 
 	if err != nil {
 		return err
 	}
 
-	memory, err := readMem(ctx)
+	memory, err := c.readMemory(ctx)
 	if err != nil {
 		return err
 	}
-	memoryReadAt := time.Now()
+	memoryReadAt := c.now()
 
 	if !c.primed {
 		c.primed = true
@@ -39,7 +43,7 @@ func (c *coreCollector) Collect(ctx context.Context, out *Batch) error {
 		return nil
 	}
 
-	l1, l5, l15, err := readLoad(ctx)
+	l1, l5, l15, err := c.readLoad(ctx)
 
 	if err != nil {
 		return err

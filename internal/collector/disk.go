@@ -24,23 +24,33 @@ const (
 )
 
 type diskCollector struct {
-	interval time.Duration
-	lastIO   map[string]disk.IOCountersStat
-	lastIOAt time.Time
+	interval       time.Duration
+	lastIO         map[string]disk.IOCountersStat
+	lastIOAt       time.Time
+	now            func() time.Time
+	readUsage      func(context.Context, int64) ([]model.Point, error)
+	readIOCounters func(context.Context) (map[string]disk.IOCountersStat, error)
 }
 
 func NewDisk(interval time.Duration) Collector {
-	return &diskCollector{interval: interval}
+	return &diskCollector{
+		interval:  interval,
+		now:       time.Now,
+		readUsage: readDiskUsage,
+		readIOCounters: func(ctx context.Context) (map[string]disk.IOCountersStat, error) {
+			return disk.IOCountersWithContext(ctx)
+		},
+	}
 }
 
 func (c *diskCollector) Name() string            { return "disk" }
 func (c *diskCollector) Interval() time.Duration { return c.interval }
 
 func (c *diskCollector) Collect(ctx context.Context, out *Batch) error {
-	collectedAt := time.Now()
+	collectedAt := c.now()
 	timestamp := collectedAt.UnixMilli()
 
-	usagePoints, usageErr := readDiskUsage(ctx, timestamp)
+	usagePoints, usageErr := c.readUsage(ctx, timestamp)
 	ioPoints, ioErr := c.readDiskIO(ctx, timestamp, collectedAt)
 	out.AddPoints(append(usagePoints, ioPoints...))
 
@@ -91,7 +101,7 @@ func (c *diskCollector) readDiskIO(
 	timestamp int64,
 	collectedAt time.Time,
 ) ([]model.Point, error) {
-	counters, err := disk.IOCountersWithContext(ctx)
+	counters, err := c.readIOCounters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read disk I/O counters: %w", err)
 	}

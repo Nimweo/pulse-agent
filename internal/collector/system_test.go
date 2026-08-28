@@ -1,13 +1,118 @@
 package collector
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/nimweo/pulse-agent/internal/model"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/mem"
 )
+
+func TestSystemCollectorStoresSnapshot(t *testing.T) {
+	metricCollector := &systemCollector{
+		interval: time.Minute,
+		readHost: func(context.Context) (*host.InfoStat, error) {
+			return &host.InfoStat{Hostname: "pulse-host", OS: "linux"}, nil
+		},
+		readCPUCounts: func(_ context.Context, logical bool) (int, error) {
+			if logical {
+				return 8, nil
+			}
+			return 4, nil
+		},
+		readCPUInfo: func(context.Context) ([]cpu.InfoStat, error) {
+			return []cpu.InfoStat{{ModelName: "Example Processor"}}, nil
+		},
+		readMemory: func(context.Context) (*mem.VirtualMemoryStat, error) {
+			return &mem.VirtualMemoryStat{Total: 16_000}, nil
+		},
+		logicalCPUs: func() int { return 2 },
+		now:         func() time.Time { return time.UnixMilli(123) },
+	}
+	batch := &Batch{}
+	if err := metricCollector.Collect(context.Background(), batch); err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	system, _, _ := batch.Drain()
+	if system == nil {
+		t.Fatal("system snapshot was not buffered")
+	}
+	if system.Time != 123 || system.ComputerName != "pulse-host" || system.ProcessorModel != "Example Processor" {
+		t.Errorf("system identity = %#v", system)
+	}
+	if system.MemoryTotalBytes != 16_000 || system.PhysicalCores != 4 || system.LogicalCPUs != 8 {
+		t.Errorf("system resources = %#v", system)
+	}
+}
+
+func TestSystemCollectorRetainsPartialSnapshotAndJoinsErrors(t *testing.T) {
+	physicalErr := errors.New("physical cores unavailable")
+	logicalErr := errors.New("logical CPUs unavailable")
+	processorErr := errors.New("processor unavailable")
+	memoryErr := errors.New("memory unavailable")
+	metricCollector := &systemCollector{
+		readHost: func(context.Context) (*host.InfoStat, error) {
+			return &host.InfoStat{Hostname: "pulse-host"}, nil
+		},
+		readCPUCounts: func(_ context.Context, logical bool) (int, error) {
+			if logical {
+				return 0, logicalErr
+			}
+			return 0, physicalErr
+		},
+		readCPUInfo: func(context.Context) ([]cpu.InfoStat, error) {
+			return nil, processorErr
+		},
+		readMemory: func(context.Context) (*mem.VirtualMemoryStat, error) {
+			return nil, memoryErr
+		},
+		logicalCPUs: func() int { return 12 },
+		now:         func() time.Time { return time.UnixMilli(123) },
+	}
+	batch := &Batch{}
+	err := metricCollector.Collect(context.Background(), batch)
+	for _, wanted := range []error{physicalErr, logicalErr, processorErr, memoryErr} {
+		if !errors.Is(err, wanted) {
+			t.Errorf("Collect() error = %v, want joined %v", err, wanted)
+		}
+	}
+	system, _, _ := batch.Drain()
+	if system == nil || system.LogicalCPUs != 12 {
+		t.Fatalf("partial system snapshot = %#v, want fallback logical CPU count", system)
+	}
+	if system.MemoryTotalBytes != 0 || system.ProcessorModel != "" {
+		t.Errorf("unavailable values were not left empty: %#v", system)
+	}
+}
+
+func TestSystemCollectorStopsWhenHostReadFails(t *testing.T) {
+	hostErr := errors.New("host unavailable")
+	countsCalled := false
+	metricCollector := &systemCollector{
+		readHost: func(context.Context) (*host.InfoStat, error) {
+			return nil, hostErr
+		},
+		readCPUCounts: func(context.Context, bool) (int, error) {
+			countsCalled = true
+			return 0, nil
+		},
+	}
+	batch := &Batch{}
+	if err := metricCollector.Collect(context.Background(), batch); !errors.Is(err, hostErr) {
+		t.Fatalf("Collect() error = %v, want host error", err)
+	}
+	if countsCalled {
+		t.Fatal("CPU counts were read after host discovery failed")
+	}
+	system, _, _ := batch.Drain()
+	if system != nil {
+		t.Fatalf("system snapshot = %#v, want nil", system)
+	}
+}
 
 func TestBuildSystemSample(t *testing.T) {
 	info := &host.InfoStat{

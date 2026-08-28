@@ -15,36 +15,50 @@ import (
 )
 
 type systemCollector struct {
-	interval time.Duration
+	interval      time.Duration
+	readHost      func(context.Context) (*host.InfoStat, error)
+	readCPUCounts func(context.Context, bool) (int, error)
+	readCPUInfo   func(context.Context) ([]cpu.InfoStat, error)
+	readMemory    func(context.Context) (*mem.VirtualMemoryStat, error)
+	logicalCPUs   func() int
+	now           func() time.Time
 }
 
 func NewSystem(interval time.Duration) Collector {
-	return &systemCollector{interval: interval}
+	return &systemCollector{
+		interval:      interval,
+		readHost:      host.InfoWithContext,
+		readCPUCounts: cpu.CountsWithContext,
+		readCPUInfo:   cpu.InfoWithContext,
+		readMemory:    mem.VirtualMemoryWithContext,
+		logicalCPUs:   runtime.NumCPU,
+		now:           time.Now,
+	}
 }
 
 func (c *systemCollector) Name() string            { return "system" }
 func (c *systemCollector) Interval() time.Duration { return c.interval }
 
 func (c *systemCollector) Collect(ctx context.Context, out *Batch) error {
-	info, err := host.InfoWithContext(ctx)
+	info, err := c.readHost(ctx)
 	if err != nil {
 		return fmt.Errorf("read system information: %w", err)
 	}
 
-	physicalCores, physicalErr := cpu.CountsWithContext(ctx, false)
-	logicalCPUs, logicalErr := cpu.CountsWithContext(ctx, true)
+	physicalCores, physicalErr := c.readCPUCounts(ctx, false)
+	logicalCPUs, logicalErr := c.readCPUCounts(ctx, true)
 	if logicalCPUs <= 0 {
-		logicalCPUs = runtime.NumCPU()
+		logicalCPUs = c.logicalCPUs()
 	}
-	processorInfo, processorErr := cpu.InfoWithContext(ctx)
-	memory, memoryErr := mem.VirtualMemoryWithContext(ctx)
+	processorInfo, processorErr := c.readCPUInfo(ctx)
+	memory, memoryErr := c.readMemory(ctx)
 	var memoryTotal uint64
 	if memory != nil {
 		memoryTotal = memory.Total
 	}
 
 	out.SetSystem(buildSystemSample(
-		time.Now().UnixMilli(),
+		c.now().UnixMilli(),
 		info,
 		firstProcessorModel(processorInfo),
 		memoryTotal,

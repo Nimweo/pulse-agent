@@ -102,5 +102,12 @@ func Default() []Collector {
 }
 
 func NewCore(perCPU bool, interval time.Duration) Collector {
-	return &coreCollector{perCPU: perCPU, interval: interval}
+	return &coreCollector{
+		perCPU:     perCPU,
+		interval:   interval,
+		readCPU:    readCPU,
+		readMemory: readMem,
+		readLoad:   readLoad,
+		now:        time.Now,
+	}
 }
