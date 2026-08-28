@@ -26,13 +26,19 @@ func (b *Batch) AddPoint(point model.Point) {
 	b.points = append(b.points, point)
 }
 
-// Drain function will return collected data and clean bufor. Executed before send data
+func (b *Batch) AddSample(core model.CoreSample, points []model.Point) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.core = append(b.core, core)
+	b.points = append(b.points, points...)
+}
+
+// Drain returns all collected data and clears the buffer before sending.
 func (b *Batch) Drain() ([]model.CoreSample, []model.Point) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	core, points := b.core, b.points
-
 	b.core, b.points = nil, nil
 
 	return core, points
@@ -46,12 +52,12 @@ type Collector interface {
 
 func Default() []Collector {
 	return []Collector{
-		&coreCollector{},
+		NewCore(false, time.Second),
 		//&diskCollector{},
 		//newNetCollector(),
 	}
 }
 
-func NewCore() Collector {
-	return &coreCollector{}
+func NewCore(perCPU bool, interval time.Duration) Collector {
+	return &coreCollector{perCPU: perCPU, interval: interval}
 }

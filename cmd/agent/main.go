@@ -38,7 +38,10 @@ func main() {
 		time.Duration(cfg.Server.Timeout)*time.Second,
 	)
 	batch := &collector.Batch{}
-	core := collector.NewCore()
+	core := collector.NewCore(
+		cfg.Collectors.CPU.PerCPU,
+		time.Duration(cfg.Intervals.Collect)*time.Second,
+	)
 
 	collectTick := time.NewTicker(time.Duration(cfg.Intervals.Collect) * time.Second)
 	defer collectTick.Stop()
