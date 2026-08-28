@@ -20,9 +20,13 @@ test("test server accepts and stores a compressed metric batch", async (t) => {
   assert.match(dashboard, /id="disk-space-chart"/);
   assert.match(dashboard, /id="disk-io-chart"/);
   assert.match(dashboard, /id="network-chart"/);
+  assert.match(dashboard, /id="gpu-load-chart"/);
+  assert.match(dashboard, /id="gpu-temperature-chart"/);
+  assert.match(dashboard, /id="gpu-power-chart"/);
   assert.match(dashboard, /id="operating-system"/);
   assert.match(dashboard, /id="processor-model"/);
   assert.match(dashboard, /id="installed-memory"/);
+  assert.match(dashboard, /id="graphics-device"/);
   const inlineScript = dashboard.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   assert.ok(inlineScript, "dashboard must contain its client script");
   assert.doesNotThrow(() => new Function(inlineScript));
@@ -46,7 +50,14 @@ test("test server accepts and stores a compressed metric batch", async (t) => {
       logical_cpus: 8,
     },
     core: [{ time: Date.now(), cpu: 25, mem_used: 50, mem_total: 100 }],
-    points: [{ time: Date.now(), metric: "disk_used_percent", device: "/", value: 50 }],
+    points: [
+      { time: Date.now(), metric: "disk_used_percent", device: "/", value: 50 },
+      { time: Date.now(), metric: "gpu_present", device: "gpu0: Example GPU", value: 1 },
+      { time: Date.now(), metric: "gpu_usage_percent", device: "gpu0: Example GPU", value: 35 },
+      { time: Date.now(), metric: "gpu_memory_used_percent", device: "gpu0: Example GPU", value: 42 },
+      { time: Date.now(), metric: "gpu_temperature_celsius", device: "gpu0: Example GPU", value: 58 },
+      { time: Date.now(), metric: "gpu_power_watts", device: "gpu0: Example GPU", value: 110 },
+    ],
   };
 
   const ingestResponse = await fetch(`${baseURL}/api/ingest`, {
@@ -63,7 +74,7 @@ test("test server accepts and stores a compressed metric batch", async (t) => {
     duplicate: false,
     batch_id: payload.batch_id,
     core_samples: 1,
-    points: 1,
+    points: 6,
   });
 
   const duplicateResponse = await fetch(`${baseURL}/api/ingest`, {
@@ -78,8 +89,9 @@ test("test server accepts and stores a compressed metric batch", async (t) => {
   const data = await dataResponse.json();
   assert.equal(data.stats.batches, 1);
   assert.equal(data.stats.core_samples, 1);
-  assert.equal(data.stats.points, 1);
+  assert.equal(data.stats.points, 6);
   assert.equal(data.latest_payload.batch_id, payload.batch_id);
+  assert.equal(data.latest_metrics["gpu_usage_percent:gpu0: Example GPU"].value, 35);
 });
 
 test("test server rejects an invalid payload", async (t) => {

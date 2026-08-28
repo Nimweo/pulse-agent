@@ -294,7 +294,7 @@ app.get("/", (_req, res) => {
   .signal-cell dt { margin-bottom: 8px; color: var(--muted); font: 500 10px/1 "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
   .signal-cell dd { overflow: hidden; margin: 0; color: var(--ink); font: 500 14px/1.25 "IBM Plex Mono", monospace; text-overflow: ellipsis; white-space: nowrap; }
   .signal-cell dd[data-empty="true"] { color: #566a73; }
-  .platform-strip { display: grid; grid-template-columns: 1.25fr 2fr 1fr 1.2fr 1.2fr; margin: 0; border-top: 1px solid var(--line); }
+  .platform-strip { display: grid; grid-template-columns: 1.2fr 1.8fr 1.25fr 1fr 1.1fr 1.2fr; margin: 0; border-top: 1px solid var(--line); }
   .platform-cell { min-width: 0; padding: 13px 16px 15px; border-right: 1px solid var(--line); }
   .platform-cell:last-child { border-right: 0; }
   .platform-cell dt { margin-bottom: 8px; color: var(--muted); font: 500 9px/1 "IBM Plex Mono", monospace; letter-spacing: .11em; text-transform: uppercase; }
@@ -306,6 +306,8 @@ app.get("/", (_req, res) => {
   .instrument-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
   .instrument { min-width: 0; border: 1px solid var(--line); background: rgba(17,31,41,.94); }
   .instrument-wide { grid-column: 1 / -1; }
+  .instrument-gpu { box-shadow: inset 3px 0 0 rgba(165,139,212,.72); }
+  .instrument-gpu .instrument-kicker { color: var(--violet); }
   .instrument-head { display: flex; align-items: start; justify-content: space-between; min-height: 64px; gap: 16px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
   .instrument-kicker { margin: 0 0 4px; color: var(--muted); font: 500 9px/1 "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
   .instrument h3 { margin: 0; font-size: 17px; font-weight: 500; }
@@ -394,6 +396,7 @@ app.get("/", (_req, res) => {
       <div class="platform-cell"><dt>Processor</dt><dd id="processor-model" data-empty="true">No signal</dd></div>
       <div class="platform-cell"><dt>Installed memory</dt><dd id="installed-memory" data-empty="true">No signal</dd></div>
       <div class="platform-cell"><dt>CPU topology</dt><dd id="cpu-topology" data-empty="true">No signal</dd></div>
+      <div class="platform-cell"><dt>Graphics</dt><dd id="graphics-device" data-empty="true">No signal</dd></div>
       <div class="platform-cell"><dt>Kernel</dt><dd id="kernel-details" data-empty="true">No signal</dd></div>
     </dl>
   </header>
@@ -431,6 +434,26 @@ app.get("/", (_req, res) => {
     <article class="instrument">
       <header class="instrument-head"><div><p class="instrument-kicker">Interfaces</p><h3>Network throughput</h3></div><p class="instrument-note">Aggregate receive and transmit · MiB/s</p></header>
       <div class="plot-frame"><div class="empty" id="network-empty">Waiting for network I/O samples.</div><div class="plot" id="network-chart"></div></div>
+    </article>
+  </section>
+
+  <div class="section-heading">
+    <h2>Graphics telemetry</h2>
+    <p>Metrics depend on GPU vendor and driver support</p>
+  </div>
+
+  <section class="instrument-grid" aria-label="GPU metric charts">
+    <article class="instrument instrument-wide instrument-gpu">
+      <header class="instrument-head"><div><p class="instrument-kicker">Accelerator load</p><h3>GPU &amp; graphics memory</h3></div><p class="instrument-note">Processor and VRAM utilization by device · percent</p></header>
+      <div class="plot-frame"><div class="empty" id="gpu-load-empty">GPU detected data will appear when utilization metrics are supported.</div><div class="plot" id="gpu-load-chart"></div></div>
+    </article>
+    <article class="instrument instrument-gpu">
+      <header class="instrument-head"><div><p class="instrument-kicker">Thermal envelope</p><h3>GPU temperature</h3></div><p class="instrument-note">Reported device temperature · °C</p></header>
+      <div class="plot-frame"><div class="empty" id="gpu-temperature-empty">Waiting for supported GPU temperature metrics.</div><div class="plot" id="gpu-temperature-chart"></div></div>
+    </article>
+    <article class="instrument instrument-gpu">
+      <header class="instrument-head"><div><p class="instrument-kicker">Power envelope</p><h3>GPU power draw</h3></div><p class="instrument-note">Reported board power · watts</p></header>
+      <div class="plot-frame"><div class="empty" id="gpu-power-empty">Waiting for supported GPU power metrics.</div><div class="plot" id="gpu-power-chart"></div></div>
     </article>
   </section>
 
@@ -481,7 +504,11 @@ function pointChart(metrics, options) {
   const keys = new Set();
 
   for (const point of matching) {
-    const key = options.aggregate ? point.metric : point.device;
+    const key = options.aggregate
+      ? point.metric
+      : options.seriesByMetric
+        ? metrics[point.metric] + " · " + point.device
+        : point.device;
     keys.add(key);
     if (!grouped.has(point.time)) grouped.set(point.time, new Map());
     const row = grouped.get(point.time);
@@ -548,6 +575,22 @@ const chartSpecs = [
       network_receive_bytes_per_second: "Receive",
       network_transmit_bytes_per_second: "Transmit",
     }, { aggregate: true, transform: (value) => value / MIB }),
+  },
+  {
+    id: "gpu-load",
+    percent: true,
+    build: () => pointChart({
+      gpu_usage_percent: "GPU",
+      gpu_memory_used_percent: "VRAM",
+    }, { seriesByMetric: true, maxSeries: 8 }),
+  },
+  {
+    id: "gpu-temperature",
+    build: () => pointChart({ gpu_temperature_celsius: "Temperature" }, { maxSeries: 4 }),
+  },
+  {
+    id: "gpu-power",
+    build: () => pointChart({ gpu_power_watts: "Power" }, { maxSeries: 4 }),
   },
 ];
 
@@ -624,6 +667,14 @@ function formatOperatingSystem(system) {
   return [name, system?.platform_version].filter(Boolean).join(" ");
 }
 
+function graphicsDeviceNames() {
+  return [...new Set(
+    allPoints()
+      .filter((point) => point.metric === "gpu_present" && point.value > 0)
+      .map((point) => point.device)
+  )].slice(0, 2).join(" · ");
+}
+
 function renderHeader() {
   const payload = latestPayload();
   const system = payload?.system || {};
@@ -634,6 +685,7 @@ function renderHeader() {
   setSignal("operating-system", formatOperatingSystem(system));
   setSignal("processor-model", system.processor_model);
   setSignal("installed-memory", formatBytes(system.memory_total_bytes || latestCore?.mem_total));
+  setSignal("graphics-device", graphicsDeviceNames());
   setSignal(
     "cpu-topology",
     system.physical_cores && system.logical_cpus
