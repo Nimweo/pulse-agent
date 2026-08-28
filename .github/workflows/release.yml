@@ -33,7 +33,8 @@ jobs:
           fi
 
           version="${RELEASE_TAG#v}"
-          if ! grep -Fq "const version = \"${version}\"" cmd/agent/main.go; then
+          source_version="$(awk '$1 == "version" && $2 == "=" {gsub(/\"/, "", $3); print $3; exit}' cmd/agent/main.go)"
+          if [[ "$source_version" != "$version" ]]; then
             echo "Tag ${RELEASE_TAG} does not match the version in cmd/agent/main.go."
             exit 1
           fi
