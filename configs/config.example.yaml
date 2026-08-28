@@ -94,3 +94,10 @@ buffer:
   max_size: 10000
   # Enable disk spool for failed sends (not yet implemented)
   disk_spool_enabled: false
+
+# Automatic release updates from the official GitHub repository
+updates:
+  # The Linux installer uses a privileged systemd updater service when enabled
+  enabled: false
+  # Allowed values: 1h, 6h, 12h, 24h, weekly, monthly (30 days)
+  interval: "24h"

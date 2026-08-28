@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestResolvePathUsesPlatformConfigurationDirectory(t *testing.T) {
@@ -158,6 +159,18 @@ func TestLoadParsesConfigWithOptionalAPIKey(t *testing.T) {
 	if !cfg.Collectors.GPU.Enabled || cfg.Collectors.GPU.Interval != 5 {
 		t.Errorf("Collectors.GPU = %#v", cfg.Collectors.GPU)
 	}
+	if !cfg.Collectors.Process.Enabled || cfg.Collectors.Process.Interval != 5 {
+		t.Errorf("Collectors.Process = %#v", cfg.Collectors.Process)
+	}
+	if cfg.Collectors.Process.TopCPU != 5 || cfg.Collectors.Process.TopMemory != 3 {
+		t.Errorf("Collectors.Process top limits = %#v", cfg.Collectors.Process)
+	}
+	if len(cfg.Collectors.Process.MonitoredProcesses) != 2 {
+		t.Errorf("Collectors.Process monitored names = %#v", cfg.Collectors.Process.MonitoredProcesses)
+	}
+	if !cfg.Updates.Enabled || cfg.Updates.Interval != "24h" {
+		t.Errorf("Updates = %#v", cfg.Updates)
+	}
 }
 
 func TestLoadRejectsInvalidBaseURL(t *testing.T) {
@@ -186,6 +199,7 @@ func TestLoadRejectsInvalidEnabledCollectorIntervals(t *testing.T) {
 		{name: "disk", collector: "disk"},
 		{name: "network", collector: "network"},
 		{name: "gpu", collector: "gpu"},
+		{name: "process", collector: "process"},
 	}
 
 	for _, tt := range tests {
@@ -205,6 +219,47 @@ collectors:
 			field := "collectors." + tt.collector + ".interval"
 			if !strings.Contains(err.Error(), field) {
 				t.Fatalf("Load() error = %q, want %q", err, field)
+			}
+		})
+	}
+}
+
+func TestLoadRejectsInvalidProcessCollectorSettings(t *testing.T) {
+	tests := []struct {
+		name  string
+		from  string
+		to    string
+		field string
+	}{
+		{
+			name:  "negative top CPU limit",
+			from:  "top_cpu: 5",
+			to:    "top_cpu: -1",
+			field: "collectors.process.top_cpu",
+		},
+		{
+			name:  "negative top memory limit",
+			from:  "top_memory: 3",
+			to:    "top_memory: -1",
+			field: "collectors.process.top_memory",
+		},
+		{
+			name:  "empty monitored process name",
+			from:  `monitored_processes: ["nginx", "redis-server"]`,
+			to:    `monitored_processes: ["nginx", " "]`,
+			field: "collectors.process.monitored_processes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writeConfig(t, strings.Replace(validConfig(""), tt.from, tt.to, 1))
+			_, err := Load(path)
+			if err == nil {
+				t.Fatal("Load() error = nil, want invalid process collector setting error")
+			}
+			if !strings.Contains(err.Error(), tt.field) {
+				t.Fatalf("Load() error = %q, want %q", err, tt.field)
 			}
 		})
 	}
@@ -242,6 +297,55 @@ func TestLoadRejectsNegativeTransportSettings(t *testing.T) {
 				t.Fatalf("Load() error = %q, want %q", err, tt.field)
 			}
 		})
+	}
+}
+
+func TestLoadRejectsInvalidUpdateSettings(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+	}{
+		{
+			name: "missing interval",
+			from: `interval: "24h"`,
+			to:   `interval: ""`,
+		},
+		{
+			name: "unsupported interval",
+			from: `interval: "24h"`,
+			to:   `interval: "2h"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writeConfig(t, strings.Replace(validConfig(""), tt.from, tt.to, 1))
+			_, err := Load(path)
+			if err == nil || !strings.Contains(err.Error(), "updates.interval") {
+				t.Fatalf("Load() error = %v, want updates.interval error", err)
+			}
+		})
+	}
+}
+
+func TestUpdateInterval(t *testing.T) {
+	tests := map[string]time.Duration{
+		"1h":      time.Hour,
+		"6h":      6 * time.Hour,
+		"12h":     12 * time.Hour,
+		"24h":     24 * time.Hour,
+		"weekly":  7 * 24 * time.Hour,
+		"monthly": 30 * 24 * time.Hour,
+	}
+	for value, want := range tests {
+		got, err := UpdateInterval(value)
+		if err != nil {
+			t.Fatalf("UpdateInterval(%q) error = %v", value, err)
+		}
+		if got != want {
+			t.Errorf("UpdateInterval(%q) = %s, want %s", value, got, want)
+		}
 	}
 }
 
@@ -290,5 +394,8 @@ transport:
 buffer:
   max_size: 10000
   disk_spool_enabled: false
+updates:
+  enabled: true
+  interval: "24h"
 `
 }

@@ -3,12 +3,17 @@
 set -Eeuo pipefail
 
 readonly SERVICE_NAME="pulse-agent.service"
+readonly UPDATE_SERVICE_NAME="pulse-agent-update.service"
+readonly UPDATE_TIMER_NAME="pulse-agent-update.timer"
 readonly SERVICE_USER="pulse-agent"
 readonly SERVICE_GROUP="pulse-agent"
 readonly BINARY_DESTINATION="/usr/local/bin/pulse-agent"
 readonly CONFIG_DIRECTORY="/etc/nimweo/pulse-agent"
 readonly CONFIG_DESTINATION="${CONFIG_DIRECTORY}/config.yaml"
 readonly SERVICE_DESTINATION="/etc/systemd/system/${SERVICE_NAME}"
+readonly UPDATE_SERVICE_DESTINATION="/etc/systemd/system/${UPDATE_SERVICE_NAME}"
+readonly UPDATE_TIMER_DESTINATION="/etc/systemd/system/${UPDATE_TIMER_NAME}"
+readonly UPDATE_STATE_DIRECTORY="/var/lib/pulse-agent-updater"
 readonly DEFAULT_BASE_URL="https://pulse.test/api/"
 readonly GITHUB_REPOSITORY="Nimweo/pulse-agent"
 readonly GITHUB_URL="https://github.com/${GITHUB_REPOSITORY}"
@@ -23,6 +28,8 @@ BASE_URL_SET=false
 OVERWRITE_CONFIG=false
 TEMPORARY_CONFIG=""
 TEMPORARY_SERVICE=""
+TEMPORARY_UPDATE_SERVICE=""
+TEMPORARY_UPDATE_TIMER=""
 DOWNLOAD_DIRECTORY=""
 
 if [[ -n "${PULSE_API_KEY+x}" ]]; then
@@ -117,6 +124,12 @@ cleanup() {
 	fi
 	if [[ -n "${TEMPORARY_SERVICE}" ]]; then
 		rm -f -- "${TEMPORARY_SERVICE}"
+	fi
+	if [[ -n "${TEMPORARY_UPDATE_SERVICE}" ]]; then
+		rm -f -- "${TEMPORARY_UPDATE_SERVICE}"
+	fi
+	if [[ -n "${TEMPORARY_UPDATE_TIMER}" ]]; then
+		rm -f -- "${TEMPORARY_UPDATE_TIMER}"
 	fi
 	if [[ -n "${DOWNLOAD_DIRECTORY}" ]]; then
 		rm -rf -- "${DOWNLOAD_DIRECTORY}"
@@ -262,6 +275,8 @@ ensure_service_account() {
 			usermod --append --groups "${hardware_group}" "${SERVICE_USER}"
 		fi
 	done
+
+	install -d -o root -g root -m 0750 "${UPDATE_STATE_DIRECTORY}"
 }
 
 install_configuration() {
@@ -308,6 +323,7 @@ Group=pulse-agent
 ExecStart=/usr/local/bin/pulse-agent --config /etc/nimweo/pulse-agent/config.yaml
 Restart=on-failure
 RestartSec=5s
+RestartPreventExitStatus=78
 UMask=0027
 NoNewPrivileges=true
 PrivateTmp=true
@@ -327,6 +343,55 @@ EOF
 	install -o root -g root -m 0644 "${TEMPORARY_SERVICE}" "${SERVICE_DESTINATION}"
 	rm -f -- "${TEMPORARY_SERVICE}"
 	TEMPORARY_SERVICE=""
+
+	TEMPORARY_UPDATE_SERVICE="$(mktemp)"
+	cat >"${TEMPORARY_UPDATE_SERVICE}" <<'EOF'
+[Unit]
+Description=Pulse Agent automatic updater
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pulse-agent --automatic-update --config /etc/nimweo/pulse-agent/config.yaml --update-state /var/lib/pulse-agent-updater/update-state.json
+TimeoutStartSec=10min
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/usr/local/bin /etc/nimweo/pulse-agent /var/lib/pulse-agent-updater
+EOF
+	install -o root -g root -m 0644 "${TEMPORARY_UPDATE_SERVICE}" "${UPDATE_SERVICE_DESTINATION}"
+	rm -f -- "${TEMPORARY_UPDATE_SERVICE}"
+	TEMPORARY_UPDATE_SERVICE=""
+
+	TEMPORARY_UPDATE_TIMER="$(mktemp)"
+	cat >"${TEMPORARY_UPDATE_TIMER}" <<'EOF'
+[Unit]
+Description=Check for Pulse Agent updates
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+AccuracySec=5min
+RandomizedDelaySec=5min
+Unit=pulse-agent-update.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	install -o root -g root -m 0644 "${TEMPORARY_UPDATE_TIMER}" "${UPDATE_TIMER_DESTINATION}"
+	rm -f -- "${TEMPORARY_UPDATE_TIMER}"
+	TEMPORARY_UPDATE_TIMER=""
 }
 
 require_command uname
@@ -339,6 +404,12 @@ download_release
 if systemctl is-active --quiet "${SERVICE_NAME}"; then
 	systemctl stop "${SERVICE_NAME}"
 fi
+if systemctl is-active --quiet "${UPDATE_TIMER_NAME}"; then
+	systemctl stop "${UPDATE_TIMER_NAME}"
+fi
+if systemctl is-active --quiet "${UPDATE_SERVICE_NAME}"; then
+	systemctl stop "${UPDATE_SERVICE_NAME}"
+fi
 
 ensure_service_account
 if [[ -e "${BINARY_DESTINATION}" && "${BINARY_SOURCE}" -ef "${BINARY_DESTINATION}" ]]; then
@@ -348,12 +419,15 @@ else
 	install -o root -g root -m 0755 "${BINARY_SOURCE}" "${BINARY_DESTINATION}"
 fi
 install_configuration
+"${BINARY_DESTINATION}" --migrate-config --config "${CONFIG_DESTINATION}"
 install_service
 
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
+systemctl enable --now "${UPDATE_TIMER_NAME}"
 
 printf 'Pulse Agent was installed successfully.\n'
 printf 'Configuration: %s\n' "${CONFIG_DESTINATION}"
 printf 'Service status: systemctl status %s\n' "${SERVICE_NAME}"
 printf 'Service logs: journalctl -u %s -f\n' "${SERVICE_NAME}"
+printf 'Manual update: sudo %s --update --config %s\n' "${BINARY_DESTINATION}" "${CONFIG_DESTINATION}"

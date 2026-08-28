@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	configtemplate "github.com/nimweo/pulse-agent/configs"
 	"github.com/nimweo/pulse-agent/internal/model"
@@ -131,8 +132,51 @@ func validate(c model.Config) error {
 	if c.Collectors.GPU.Enabled && c.Collectors.GPU.Interval <= 0 {
 		return errors.New("collectors.gpu.interval must be greater than zero when GPU collection is enabled")
 	}
+	if c.Collectors.Process.Enabled && c.Collectors.Process.Interval <= 0 {
+		return errors.New("collectors.process.interval must be greater than zero when process collection is enabled")
+	}
+	if c.Collectors.Process.TopCPU < 0 {
+		return errors.New("collectors.process.top_cpu must not be negative")
+	}
+	if c.Collectors.Process.TopMemory < 0 {
+		return errors.New("collectors.process.top_memory must not be negative")
+	}
+	for _, name := range c.Collectors.Process.MonitoredProcesses {
+		if strings.TrimSpace(name) == "" {
+			return errors.New("collectors.process.monitored_processes must not contain empty names")
+		}
+	}
+	if c.Updates.Enabled && strings.TrimSpace(c.Updates.Interval) == "" {
+		return errors.New("updates.interval is required when automatic updates are enabled")
+	}
+	if c.Updates.Interval != "" {
+		if _, err := UpdateInterval(c.Updates.Interval); err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func UpdateInterval(value string) (time.Duration, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1h":
+		return time.Hour, nil
+	case "6h":
+		return 6 * time.Hour, nil
+	case "12h":
+		return 12 * time.Hour, nil
+	case "24h":
+		return 24 * time.Hour, nil
+	case "weekly":
+		return 7 * 24 * time.Hour, nil
+	case "monthly":
+		return 30 * 24 * time.Hour, nil
+	default:
+		return 0, errors.New(
+			"updates.interval must be one of 1h, 6h, 12h, 24h, weekly, or monthly",
+		)
+	}
 }
 
 func validateBaseURL(rawURL string) error {

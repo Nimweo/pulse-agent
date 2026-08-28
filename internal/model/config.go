@@ -9,6 +9,7 @@ type Config struct {
 	Collectors CollectorsConfig `yaml:"collectors"`
 	Transport  TransportConfig  `yaml:"transport"`
 	Buffer     BufferConfig     `yaml:"buffer"`
+	Updates    UpdateConfig     `yaml:"updates"`
 }
 
 type ServerConfig struct {
@@ -70,4 +71,9 @@ type TransportConfig struct {
 type BufferConfig struct {
 	MaxSize          int  `yaml:"max_size"`
 	DiskSpoolEnabled bool `yaml:"disk_spool_enabled"`
+}
+
+type UpdateConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Interval string `yaml:"interval"`
 }
