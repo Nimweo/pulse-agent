@@ -1,5 +1,5 @@
 .idea/
-test_web_server/node_modules
+test_web_server/
 .junie
 .codex
 configs/config.yaml
