@@ -15,7 +15,7 @@ agent:
   # Override system hostname (optional, uses os.Hostname() if not set)
   hostname: ""
   # Agent version identifier
-  version: "dev"
+  version: "0.2.0"
 
 # Collection intervals
 intervals:
