@@ -1,0 +1,167 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate version tag
+        id: version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must use the vMAJOR.MINOR.PATCH format."
+            exit 1
+          fi
+
+          version="${RELEASE_TAG#v}"
+          if ! grep -Fq "const version = \"${version}\"" cmd/agent/main.go; then
+            echo "Tag ${RELEASE_TAG} does not match the version in cmd/agent/main.go."
+            exit 1
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: test_web_server/package-lock.json
+
+      - name: Install web server dependencies
+        working-directory: test_web_server
+        run: npm ci
+
+      - name: Run web server tests
+        working-directory: test_web_server
+        run: npm test
+
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        goos:
+          - linux
+          - windows
+          - darwin
+        goarch:
+          - amd64
+          - arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build release archive
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          package="pulse-agent_${VERSION}_${GOOS}_${GOARCH}"
+          binary="pulse-agent"
+          if [[ "$GOOS" == "windows" ]]; then
+            binary="pulse-agent.exe"
+          fi
+
+          package_dir="dist/${package}"
+          mkdir -p "$package_dir"
+
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o "${package_dir}/${binary}" \
+            ./cmd/agent
+
+          cp LICENSE configs/config.example.yaml "$package_dir/"
+
+          if [[ "$GOOS" == "windows" ]]; then
+            (cd dist && zip -rq "${package}.zip" "$package")
+            echo "archive=dist/${package}.zip" >> "$GITHUB_ENV"
+          else
+            tar -C dist -czf "dist/${package}.tar.gz" "$package"
+            echo "archive=dist/${package}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: pulse-agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.archive }}
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Publish GitHub release
+    needs:
+      - verify
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: pulse-agent-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        working-directory: dist
+        run: sha256sum pulse-agent_* > checksums.txt
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --verify-tag \
+            --title "Pulse Agent ${RELEASE_TAG}" \
+            --generate-notes \
+            --latest
