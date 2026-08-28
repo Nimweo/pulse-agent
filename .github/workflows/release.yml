@@ -49,6 +49,9 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
+      - name: Check Linux installer syntax
+        run: bash -n install.sh
+
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     needs: verify
@@ -99,6 +102,11 @@ jobs:
             ./cmd/agent
 
           cp LICENSE configs/config.example.yaml "$package_dir/"
+
+          if [[ "$GOOS" == "linux" ]]; then
+            cp install.sh "$package_dir/"
+            chmod 0755 "${package_dir}/install.sh"
+          fi
 
           if [[ "$GOOS" == "windows" ]]; then
             (cd dist && zip -rq "${package}.zip" "$package")

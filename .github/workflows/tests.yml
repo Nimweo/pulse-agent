@@ -41,6 +41,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check Linux installer syntax
+        run: bash -n install.sh
+
       - name: Run Go vet
         run: go vet ./...
 
