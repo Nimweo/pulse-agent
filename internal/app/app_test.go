@@ -161,11 +161,18 @@ func TestConfiguredCollectors(t *testing.T) {
 			Disk:    model.CollectorConfig{Enabled: true, Interval: 3},
 			Network: model.CollectorConfig{Enabled: true, Interval: 4},
 			GPU:     model.CollectorConfig{Enabled: true, Interval: 5},
+			Process: model.ProcessCollectorConfig{
+				Enabled:            true,
+				Interval:           6,
+				TopCPU:             3,
+				TopMemory:          4,
+				MonitoredProcesses: []string{"nginx"},
+			},
 		},
 	}
 
 	collectors := configuredCollectors(cfg)
-	wantNames := []string{"system", "core", "disk", "network", "gpu"}
+	wantNames := []string{"system", "core", "disk", "network", "gpu", "process"}
 	if len(collectors) != len(wantNames) {
 		t.Fatalf("configuredCollectors() length = %d, want %d", len(collectors), len(wantNames))
 	}

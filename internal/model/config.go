@@ -42,14 +42,23 @@ type CPUCollectorConfig struct {
 	PerCPU   bool `yaml:"per_cpu"`
 }
 
+type ProcessCollectorConfig struct {
+	Enabled            bool     `yaml:"enabled"`
+	Interval           int      `yaml:"interval"`
+	TopCPU             int      `yaml:"top_cpu"`
+	TopMemory          int      `yaml:"top_memory"`
+	MonitoredProcesses []string `yaml:"monitored_processes"`
+}
+
 type CollectorsConfig struct {
-	System  CollectorConfig    `yaml:"system"`
-	Load    CollectorConfig    `yaml:"load"`
-	CPU     CPUCollectorConfig `yaml:"cpu"`
-	Memory  CollectorConfig    `yaml:"memory"`
-	Disk    CollectorConfig    `yaml:"disk"`
-	Network CollectorConfig    `yaml:"network"`
-	GPU     CollectorConfig    `yaml:"gpu"`
+	System  CollectorConfig        `yaml:"system"`
+	Load    CollectorConfig        `yaml:"load"`
+	CPU     CPUCollectorConfig     `yaml:"cpu"`
+	Memory  CollectorConfig        `yaml:"memory"`
+	Disk    CollectorConfig        `yaml:"disk"`
+	Network CollectorConfig        `yaml:"network"`
+	GPU     CollectorConfig        `yaml:"gpu"`
+	Process ProcessCollectorConfig `yaml:"process"`
 }
 
 type TransportConfig struct {

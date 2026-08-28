@@ -84,6 +84,9 @@ func TestEnsureCreatesEmbeddedExampleWithoutOverwritingIt(t *testing.T) {
 	if !strings.Contains(string(contents), `base_url: "https://pulse.test/api/"`) {
 		t.Fatalf("created configuration does not contain the default base URL")
 	}
+	if !strings.Contains(string(contents), "monitored_processes: []") {
+		t.Fatalf("created configuration does not contain process collector settings")
+	}
 
 	if err := os.WriteFile(path, []byte("custom"), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
@@ -274,6 +277,12 @@ collectors:
   disk: { enabled: false, interval: 1 }
   network: { enabled: false, interval: 1 }
   gpu: { enabled: true, interval: 5 }
+  process:
+    enabled: true
+    interval: 5
+    top_cpu: 5
+    top_memory: 3
+    monitored_processes: ["nginx", "redis-server"]
 transport:
   compression: true
   max_retries: 3

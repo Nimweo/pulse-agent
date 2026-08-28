@@ -69,6 +69,16 @@ collectors:
     enabled: true
     interval: 5
 
+  # Process counts, top resource consumers, and explicitly monitored process names
+  process:
+    enabled: false
+    interval: 5
+    # Number of process-name groups reported by CPU and resident memory usage
+    top_cpu: 5
+    top_memory: 5
+    # Exact process names matched case-insensitively; all matching instances are aggregated
+    monitored_processes: []
+
 # Transport configuration
 transport:
   # Enable gzip compression for outgoing requests

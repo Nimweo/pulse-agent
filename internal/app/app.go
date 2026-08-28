@@ -92,7 +92,7 @@ func run(
 }
 
 func configuredCollectors(cfg *model.Config) []collector.Collector {
-	collectors := make([]collector.Collector, 0, 5)
+	collectors := make([]collector.Collector, 0, 6)
 	if cfg.Collectors.System.Enabled {
 		collectors = append(
 			collectors,
@@ -122,6 +122,17 @@ func configuredCollectors(cfg *model.Config) []collector.Collector {
 		collectors = append(
 			collectors,
 			collector.NewGPU(time.Duration(cfg.Collectors.GPU.Interval)*time.Second),
+		)
+	}
+	if cfg.Collectors.Process.Enabled {
+		collectors = append(
+			collectors,
+			collector.NewProcess(
+				time.Duration(cfg.Collectors.Process.Interval)*time.Second,
+				cfg.Collectors.Process.TopCPU,
+				cfg.Collectors.Process.TopMemory,
+				cfg.Collectors.Process.MonitoredProcesses,
+			),
 		)
 	}
 
