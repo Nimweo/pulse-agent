@@ -80,7 +80,7 @@ func main() {
 	}
 
 	batch := &collector.Batch{}
-	collectors := make([]collector.Collector, 0, 4)
+	collectors := make([]collector.Collector, 0, 5)
 	if cfg.Collectors.System.Enabled {
 		collectors = append(
 			collectors,
@@ -103,6 +103,12 @@ func main() {
 		collectors = append(
 			collectors,
 			collector.NewNetwork(time.Duration(cfg.Collectors.Network.Interval)*time.Second),
+		)
+	}
+	if cfg.Collectors.GPU.Enabled {
+		collectors = append(
+			collectors,
+			collector.NewGPU(time.Duration(cfg.Collectors.GPU.Interval)*time.Second),
 		)
 	}
 

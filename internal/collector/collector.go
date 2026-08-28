@@ -97,6 +97,7 @@ func Default() []Collector {
 		NewCore(false, time.Second),
 		NewDisk(time.Second),
 		NewNetwork(time.Second),
+		NewGPU(5 * time.Second),
 	}
 }
 

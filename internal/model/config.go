@@ -49,6 +49,7 @@ type CollectorsConfig struct {
 	Memory  CollectorConfig    `yaml:"memory"`
 	Disk    CollectorConfig    `yaml:"disk"`
 	Network CollectorConfig    `yaml:"network"`
+	GPU     CollectorConfig    `yaml:"gpu"`
 }
 
 type TransportConfig struct {

@@ -64,6 +64,11 @@ collectors:
     enabled: true
     interval: 1
 
+  # GPU utilization, memory, temperature, and power when supported by the system
+  gpu:
+    enabled: true
+    interval: 5
+
 # Transport configuration
 transport:
   # Enable gzip compression for outgoing requests

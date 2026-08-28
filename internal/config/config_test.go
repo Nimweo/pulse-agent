@@ -135,6 +135,9 @@ func TestLoadParsesConfigWithOptionalAPIKey(t *testing.T) {
 	if !cfg.Collectors.CPU.PerCPU {
 		t.Error("Collectors.CPU.PerCPU = false")
 	}
+	if !cfg.Collectors.GPU.Enabled || cfg.Collectors.GPU.Interval != 5 {
+		t.Errorf("Collectors.GPU = %#v", cfg.Collectors.GPU)
+	}
 }
 
 func TestLoadRejectsInvalidBaseURL(t *testing.T) {
@@ -162,6 +165,7 @@ func TestLoadRejectsInvalidEnabledCollectorIntervals(t *testing.T) {
 		{name: "system", collector: "system"},
 		{name: "disk", collector: "disk"},
 		{name: "network", collector: "network"},
+		{name: "gpu", collector: "gpu"},
 	}
 
 	for _, tt := range tests {
@@ -252,6 +256,7 @@ collectors:
   memory: { enabled: true, interval: 1 }
   disk: { enabled: false, interval: 1 }
   network: { enabled: false, interval: 1 }
+  gpu: { enabled: true, interval: 5 }
 transport:
   compression: true
   max_retries: 3

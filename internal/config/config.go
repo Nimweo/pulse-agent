@@ -128,6 +128,9 @@ func validate(c model.Config) error {
 	if c.Collectors.Network.Enabled && c.Collectors.Network.Interval <= 0 {
 		return errors.New("collectors.network.interval must be greater than zero when network collection is enabled")
 	}
+	if c.Collectors.GPU.Enabled && c.Collectors.GPU.Interval <= 0 {
+		return errors.New("collectors.gpu.interval must be greater than zero when GPU collection is enabled")
+	}
 
 	return nil
 }
