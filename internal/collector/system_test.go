@@ -5,11 +5,13 @@ import (
 	"time"
 
 	"github.com/nimweo/pulse-agent/internal/model"
+	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
 )
 
 func TestBuildSystemSample(t *testing.T) {
 	info := &host.InfoStat{
+		Hostname:             "pulse-host",
 		Uptime:               3_600,
 		BootTime:             1_700_000_000,
 		Procs:                42,
@@ -23,7 +25,7 @@ func TestBuildSystemSample(t *testing.T) {
 		VirtualizationRole:   "guest",
 	}
 
-	sample := buildSystemSample(123, info, 4, 8)
+	sample := buildSystemSample(123, info, "Example Processor", 16_000_000_000, 4, 8)
 	if sample.Time != 123 {
 		t.Errorf("Time = %d, want 123", sample.Time)
 	}
@@ -38,6 +40,25 @@ func TestBuildSystemSample(t *testing.T) {
 	}
 	if sample.Platform != "ubuntu" || sample.KernelArchitecture != "x86_64" {
 		t.Errorf("unexpected system identity: %+v", sample)
+	}
+	if sample.ComputerName != "pulse-host" {
+		t.Errorf("ComputerName = %q, want pulse-host", sample.ComputerName)
+	}
+	if sample.ProcessorModel != "Example Processor" {
+		t.Errorf("ProcessorModel = %q, want Example Processor", sample.ProcessorModel)
+	}
+	if sample.MemoryTotalBytes != 16_000_000_000 {
+		t.Errorf("MemoryTotalBytes = %d, want 16000000000", sample.MemoryTotalBytes)
+	}
+}
+
+func TestFirstProcessorModel(t *testing.T) {
+	processors := []cpu.InfoStat{
+		{ModelName: ""},
+		{ModelName: "  Example Processor  "},
+	}
+	if got := firstProcessorModel(processors); got != "Example Processor" {
+		t.Fatalf("firstProcessorModel() = %q, want Example Processor", got)
 	}
 }
 
