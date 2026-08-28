@@ -3,14 +3,14 @@ import express from "express";
 import zlib from "node:zlib";
 
 const app = express();
-const MAX_POINTS = 600; // ~10 min przy 1 Hz
+const MAX_POINTS = 600; // About 10 minutes at 1 Hz.
 
-// Ring buffer — uPlot chce dane kolumnowo: [[czas], [cpu], [mem%]]
+// Ring buffer. uPlot expects column-oriented data: [[time], [cpu], [mem%]].
 const store = { t: [], cpu: [], mem: [] };
-const clients = new Set(); // aktywne połączenia SSE
+const clients = new Set(); // Active SSE connections.
 
 function push(s) {
-  store.t.push(s.time / 1000); // uPlot oczekuje sekund, nie ms
+  store.t.push(s.time / 1000); // uPlot expects seconds rather than milliseconds.
   store.cpu.push(s.cpu);
   store.mem.push(s.mem_total ? (s.mem_used / s.mem_total) * 100 : 0);
   if (store.t.length > MAX_POINTS) {
@@ -20,7 +20,7 @@ function push(s) {
   }
 }
 
-// --- odbiór surowego body + gunzip ---
+// Receive the raw request body and decompress gzip payloads.
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
   const chunks = [];
@@ -39,19 +39,19 @@ app.use((req, res, next) => {
       req.body = JSON.parse(buf.toString("utf8"));
       next();
     } catch {
-      res.status(400).json({ error: "zły JSON" });
+      res.status(400).json({ error: "invalid JSON" });
     }
   };
   if (req.headers["content-encoding"] === "gzip") {
     zlib.gunzip(req.rawBody, (err, buf) =>
-      err ? res.status(400).json({ error: "zły gzip" }) : done(buf)
+      err ? res.status(400).json({ error: "invalid gzip payload" }) : done(buf)
     );
   } else {
     done(req.rawBody);
   }
 });
 
-// --- ingest ---
+// Metrics ingestion endpoint.
 app.post("/ingest", (req, res) => {
   const { h, hostname, core = [] } = req.body ?? {};
   const host = h ?? hostname ?? "?";
@@ -60,38 +60,38 @@ app.post("/ingest", (req, res) => {
 
   console.log(
     `[${new Date().toISOString()}] ${host} — core: ${core.length}, ` +
-      `raw: ${req.rawBody.length} B, bufor: ${store.t.length}`
+      `raw: ${req.rawBody.length} B, buffer: ${store.t.length}`
   );
 
-  // rozgłoś nowe próbki do przeglądarek
+  // Broadcast new samples to connected browsers.
   const msg = `data: ${JSON.stringify(core)}\n\n`;
   for (const c of clients) c.write(msg);
 
   res.status(202).json({ ok: true });
 });
 
-// --- SSE: strumień na żywo ---
+// Live SSE stream.
 app.get("/stream", (req, res) => {
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
   });
-  res.write("\n"); // otwiera strumień
+  res.write("\n"); // Open the stream immediately.
   clients.add(res);
   req.on("close", () => clients.delete(res));
 });
 
-// --- stan początkowy (żeby po F5 nie było pusto) ---
+// Initial state so the chart is populated after a page refresh.
 app.get("/data", (_req, res) => res.json(store));
 
-// --- strona z wykresem ---
+// Dashboard page.
 app.get("/", (_req, res) => {
   res.type("html").send(`<!doctype html>
-<html lang="pl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Pulse — podgląd</title>
+<title>Pulse — live dashboard</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.min.css">
 <style>
   body { background:#18181b; color:#e4e4e7; font:14px/1.5 system-ui, sans-serif; margin:0; padding:24px; }
@@ -102,8 +102,8 @@ app.get("/", (_req, res) => {
 </style>
 </head>
 <body>
-  <h1>Nimweo Pulse — podgląd na żywo</h1>
-  <div class="meta" id="meta">czekam na dane…</div>
+  <h1>Nimweo Pulse — live dashboard</h1>
+  <div class="meta" id="meta">waiting for data…</div>
   <div id="chart"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js"></script>
@@ -150,10 +150,10 @@ async function boot() {
     trim();
     plot.setData(data);
     document.getElementById("meta").textContent =
-      \`punktów: \${data[0].length} · ostatnia: \${new Date().toLocaleTimeString("pl-PL")}\`;
+      \`points: \${data[0].length} · latest: \${new Date().toLocaleTimeString("en-US")}\`;
   };
   es.onerror = () => {
-    document.getElementById("meta").textContent = "rozłączono — odśwież stronę";
+    document.getElementById("meta").textContent = "disconnected — refresh the page";
   };
 }
 boot();
@@ -163,5 +163,5 @@ boot();
 });
 
 app.listen(3000, () =>
-  console.log("ingest: POST http://localhost:3000/ingest\npodgląd: http://localhost:3000")
+  console.log("ingest: POST http://localhost:3000/ingest\ndashboard: http://localhost:3000")
 );
