@@ -51,6 +51,9 @@ app.use((req, res, next) => {
   }
 });
 
+// Agent startup health check.
+app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+
 // Metrics ingestion endpoint.
 app.post("/ingest", (req, res) => {
   const { h, hostname, core = [] } = req.body ?? {};
@@ -163,5 +166,9 @@ boot();
 });
 
 app.listen(3000, () =>
-  console.log("ingest: POST http://localhost:3000/ingest\ndashboard: http://localhost:3000")
+  console.log(
+    "health: GET http://localhost:3000/health\n" +
+      "ingest: POST http://localhost:3000/ingest\n" +
+      "dashboard: http://localhost:3000"
+  )
 );

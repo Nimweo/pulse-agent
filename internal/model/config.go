@@ -1,6 +1,7 @@
 package model
 
 type Config struct {
+	Configured bool             `yaml:"configured"`
 	Server     ServerConfig     `yaml:"server"`
 	Agent      AgentConfig      `yaml:"agent"`
 	Intervals  IntervalsConfig  `yaml:"intervals"`
@@ -11,14 +12,13 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	URL     string `yaml:"url"`
+	BaseURL string `yaml:"base_url"`
 	APIKey  string `yaml:"api_key"`
 	Timeout int    `yaml:"timeout"`
 }
 
 type AgentConfig struct {
 	Hostname string `yaml:"hostname"`
-	Version  string `yaml:"version"`
 }
 
 type IntervalsConfig struct {

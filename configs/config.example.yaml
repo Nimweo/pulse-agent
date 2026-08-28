@@ -1,12 +1,13 @@
 # Pulse Agent Configuration Example
-# Copy this file to configs/config.yaml and customize as needed
+# Set this to true after reviewing all settings.
+configured: false
 
 # Server configuration
 server:
-  # Ingest endpoint URL where metrics will be sent
-  url: "https://pulse.test/api/"
-  # API key for authentication
-  api_key: "YOUR_API_KEY"
+  # Base API URL. The agent appends operation-specific paths such as /health and /ingest.
+  base_url: "https://pulse.test/api/"
+  # Optional API key for authentication
+  api_key: ""
   # Request timeout in seconds
   timeout: 10
 
@@ -14,8 +15,6 @@ server:
 agent:
   # Override system hostname (optional, uses os.Hostname() if not set)
   hostname: ""
-  # Agent version identifier
-  version: "0.2.0"
 
 # Collection intervals
 intervals:

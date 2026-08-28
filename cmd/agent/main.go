@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,10 +17,41 @@ import (
 	"github.com/nimweo/pulse-agent/internal/transport"
 )
 
+var version = "0.2.0"
+
 func main() {
-	cfg, err := config.Load(config.DefaultPath)
+	configFlag := flag.String("config", "", "path to the configuration file")
+	flag.Parse()
+
+	configPath, err := config.ResolvePath(*configFlag)
 	if err != nil {
-		slog.Error("failed to start agent", "err", err)
+		slog.Error("failed to resolve configuration path", "err", err)
+		os.Exit(1)
+	}
+
+	created, err := config.Ensure(configPath)
+	if err != nil {
+		slog.Error("failed to prepare configuration", "path", configPath, "err", err)
+		os.Exit(1)
+	}
+	if created {
+		slog.Error(
+			"configuration file created; update its settings and set configured to true",
+			"path", configPath,
+		)
+		os.Exit(1)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		if errors.Is(err, config.ErrNotConfigured) {
+			slog.Error(
+				"agent is not configured; update the configuration file and set configured to true",
+				"path", configPath,
+			)
+		} else {
+			slog.Error("failed to load configuration", "path", configPath, "err", err)
+		}
 		os.Exit(1)
 	}
 
@@ -34,10 +67,20 @@ func main() {
 		}
 	}
 
-	client := transport.New(
-		cfg.Server.URL,
+	client, err := transport.New(
+		cfg.Server.BaseURL,
+		cfg.Server.APIKey,
 		time.Duration(cfg.Server.Timeout)*time.Second,
 	)
+	if err != nil {
+		slog.Error("failed to configure API client", "err", err)
+		os.Exit(1)
+	}
+	if err := client.CheckHealth(ctx); err != nil {
+		slog.Error("API health check failed", "base_url", cfg.Server.BaseURL, "err", err)
+		os.Exit(1)
+	}
+
 	batch := &collector.Batch{}
 	collectors := make([]collector.Collector, 0, 4)
 	if cfg.Collectors.System.Enabled {
@@ -89,7 +132,7 @@ func main() {
 				continue
 			}
 			payload := model.Payload{
-				AgentVersion: cfg.Agent.Version,
+				AgentVersion: version,
 				Hostname:     hostname,
 				System:       system,
 				Core:         cs,
