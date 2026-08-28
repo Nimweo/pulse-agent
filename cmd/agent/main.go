@@ -51,6 +51,12 @@ func main() {
 			collector.NewDisk(time.Duration(cfg.Collectors.Disk.Interval)*time.Second),
 		)
 	}
+	if cfg.Collectors.Network.Enabled {
+		collectors = append(
+			collectors,
+			collector.NewNetwork(time.Duration(cfg.Collectors.Network.Interval)*time.Second),
+		)
+	}
 
 	var collectorWorkers sync.WaitGroup
 	for _, metricCollector := range collectors {

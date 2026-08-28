@@ -86,7 +86,7 @@ func Default() []Collector {
 	return []Collector{
 		NewCore(false, time.Second),
 		NewDisk(time.Second),
-		//newNetCollector(),
+		NewNetwork(time.Second),
 	}
 }
 
