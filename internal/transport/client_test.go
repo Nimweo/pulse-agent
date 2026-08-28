@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -75,6 +76,30 @@ func TestCheckHealthRejectsNon200Response(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "expected 200 OK") {
 		t.Fatalf("CheckHealth() error = %q, want expected status", err)
+	}
+}
+
+func TestCheckHealthReportsAuthenticationErrors(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(status)
+			}))
+			defer server.Close()
+
+			client, err := New(
+				model.ServerConfig{BaseURL: server.URL, APIKey: "invalid", Timeout: 1},
+				model.TransportConfig{},
+			)
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			err = client.CheckHealth(context.Background())
+			if !errors.Is(err, ErrAuthentication) {
+				t.Fatalf("CheckHealth() error = %v, want ErrAuthentication", err)
+			}
+		})
 	}
 }
 
@@ -219,5 +244,34 @@ func TestSendDoesNotRetryClientError(t *testing.T) {
 	}
 	if attempts != 1 {
 		t.Fatalf("attempts = %d, want 1", attempts)
+	}
+}
+
+func TestSendReportsAuthenticationErrorsWithoutRetry(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			attempts := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				attempts++
+				w.WriteHeader(status)
+			}))
+			defer server.Close()
+
+			client, err := New(
+				model.ServerConfig{BaseURL: server.URL, APIKey: "invalid", Timeout: 1},
+				model.TransportConfig{MaxRetries: 3},
+			)
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			err = client.Send(context.Background(), model.Payload{})
+			if !errors.Is(err, ErrAuthentication) {
+				t.Fatalf("Send() error = %v, want ErrAuthentication", err)
+			}
+			if attempts != 1 {
+				t.Fatalf("attempts = %d, want 1", attempts)
+			}
+		})
 	}
 }

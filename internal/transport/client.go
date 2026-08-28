@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 )
 
 const maxRetryDelay = 30 * time.Second
+
+var ErrAuthentication = errors.New("API authentication failed")
 
 type Client struct {
 	healthURL   string
@@ -84,6 +87,13 @@ func (c *Client) CheckHealth(ctx context.Context) error {
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
+		if isAuthenticationStatus(resp.StatusCode) {
+			return fmt.Errorf(
+				"%w: health endpoint returned %s",
+				ErrAuthentication,
+				resp.Status,
+			)
+		}
 		return fmt.Errorf("health endpoint returned %s, expected 200 OK", resp.Status)
 	}
 
@@ -173,7 +183,15 @@ func (c *Client) sendAttempt(
 		return false, nil
 	}
 
-	err = fmt.Errorf("ingest endpoint returned %s", resp.Status)
+	if isAuthenticationStatus(resp.StatusCode) {
+		err = fmt.Errorf(
+			"%w: ingest endpoint returned %s",
+			ErrAuthentication,
+			resp.Status,
+		)
+	} else {
+		err = fmt.Errorf("ingest endpoint returned %s", resp.Status)
+	}
 	return isRetryableStatus(resp.StatusCode), err
 }
 
@@ -188,6 +206,10 @@ func isRetryableStatus(status int) bool {
 		status == http.StatusTooEarly ||
 		status == http.StatusTooManyRequests ||
 		status >= http.StatusInternalServerError
+}
+
+func isAuthenticationStatus(status int) bool {
+	return status == http.StatusUnauthorized || status == http.StatusForbidden
 }
 
 func retryDelay(base time.Duration, retry int) time.Duration {

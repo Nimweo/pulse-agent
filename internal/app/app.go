@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -38,26 +39,36 @@ func Run(ctx context.Context, cfg *model.Config, version string) error {
 		return fmt.Errorf("API health check for %q: %w", cfg.Server.BaseURL, err)
 	}
 
-	return run(ctx, cfg, version, hostname, client, configuredCollectors(cfg))
+	return run(
+		ctx,
+		time.Duration(cfg.Intervals.Send)*time.Second,
+		version,
+		hostname,
+		client,
+		configuredCollectors(cfg),
+	)
 }
 
 func run(
 	ctx context.Context,
-	cfg *model.Config,
+	sendInterval time.Duration,
 	version string,
 	hostname string,
 	sender metricSender,
 	collectors []collector.Collector,
 ) error {
+	workerContext, stopWorkers := context.WithCancel(ctx)
+	defer stopWorkers()
+
 	batch := &collector.Batch{}
 
 	var collectorWorkers sync.WaitGroup
 	for _, metricCollector := range collectors {
 		collectorWorkers.Add(1)
-		go runCollector(ctx, &collectorWorkers, metricCollector, batch)
+		go runCollector(workerContext, &collectorWorkers, metricCollector, batch)
 	}
 
-	sendTicker := time.NewTicker(time.Duration(cfg.Intervals.Send) * time.Second)
+	sendTicker := time.NewTicker(sendInterval)
 	defer sendTicker.Stop()
 
 	slog.Info("agent started", "version", version, "hostname", hostname)
@@ -66,11 +77,16 @@ func run(
 		select {
 		case <-ctx.Done():
 			slog.Info("shutting down")
+			stopWorkers()
 			collectorWorkers.Wait()
 			return nil
 
 		case <-sendTicker.C:
-			sendBatch(ctx, sender, batch, version, hostname)
+			if err := sendBatch(ctx, sender, batch, version, hostname); err != nil {
+				stopWorkers()
+				collectorWorkers.Wait()
+				return fmt.Errorf("send metric batch: %w", err)
+			}
 		}
 	}
 }
@@ -130,16 +146,16 @@ func sendBatch(
 	batch *collector.Batch,
 	version string,
 	hostname string,
-) {
+) error {
 	system, core, points := batch.Drain()
 	if system == nil && len(core) == 0 && len(points) == 0 {
-		return
+		return nil
 	}
 
 	payload, err := buildPayload(version, hostname, system, core, points)
 	if err != nil {
 		slog.Error("failed to create metric payload", "err", err)
-		return
+		return nil
 	}
 	if err := sender.Send(ctx, payload); err != nil {
 		slog.Error(
@@ -148,7 +164,10 @@ func sendBatch(
 			"err", err,
 			"dropped", len(core)+len(points),
 		)
-		return // Samples are dropped until disk spooling is implemented.
+		if errors.Is(err, transport.ErrAuthentication) {
+			return err
+		}
+		return nil // Samples are dropped until disk spooling is implemented.
 	}
 
 	slog.Info(
@@ -157,6 +176,7 @@ func sendBatch(
 		"core", len(core),
 		"points", len(points),
 	)
+	return nil
 }
 
 func buildPayload(

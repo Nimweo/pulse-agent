@@ -5,9 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/nimweo/pulse-agent/internal/collector"
 	"github.com/nimweo/pulse-agent/internal/model"
+	"github.com/nimweo/pulse-agent/internal/transport"
 )
 
 type senderStub struct {
@@ -18,6 +20,15 @@ type senderStub struct {
 func (s *senderStub) Send(_ context.Context, payload model.Payload) error {
 	s.payloads = append(s.payloads, payload)
 	return s.err
+}
+
+type sampleCollector struct{}
+
+func (sampleCollector) Name() string            { return "sample" }
+func (sampleCollector) Interval() time.Duration { return time.Hour }
+func (sampleCollector) Collect(_ context.Context, batch *collector.Batch) error {
+	batch.AddCore(model.CoreSample{Time: 123, CPU: 25})
+	return nil
 }
 
 func TestBuildPayloadCreatesVersionedBatchEnvelope(t *testing.T) {
@@ -63,7 +74,9 @@ func TestSendBatchSendsBufferedMetrics(t *testing.T) {
 	batch.AddPoint(model.Point{Time: 123, Metric: "network_receive_bytes_per_second", Value: 10})
 	sender := &senderStub{}
 
-	sendBatch(context.Background(), sender, batch, "0.8.0", "pulse-host")
+	if err := sendBatch(context.Background(), sender, batch, "0.8.0", "pulse-host"); err != nil {
+		t.Fatalf("sendBatch() error = %v", err)
+	}
 
 	if len(sender.payloads) != 1 {
 		t.Fatalf("Send() calls = %d, want 1", len(sender.payloads))
@@ -80,7 +93,15 @@ func TestSendBatchSendsBufferedMetrics(t *testing.T) {
 func TestSendBatchSkipsEmptyBatch(t *testing.T) {
 	sender := &senderStub{}
 
-	sendBatch(context.Background(), sender, &collector.Batch{}, "0.8.0", "pulse-host")
+	if err := sendBatch(
+		context.Background(),
+		sender,
+		&collector.Batch{},
+		"0.8.0",
+		"pulse-host",
+	); err != nil {
+		t.Fatalf("sendBatch() error = %v", err)
+	}
 
 	if len(sender.payloads) != 0 {
 		t.Fatalf("Send() calls = %d, want 0", len(sender.payloads))
@@ -92,11 +113,42 @@ func TestSendBatchDrainsMetricsAfterSendFailure(t *testing.T) {
 	batch.AddCore(model.CoreSample{Time: 123})
 	sender := &senderStub{err: errors.New("send failed")}
 
-	sendBatch(context.Background(), sender, batch, "0.8.0", "pulse-host")
-	sendBatch(context.Background(), sender, batch, "0.8.0", "pulse-host")
+	if err := sendBatch(context.Background(), sender, batch, "0.8.0", "pulse-host"); err != nil {
+		t.Fatalf("sendBatch() error = %v, want nil for transient failure", err)
+	}
+	if err := sendBatch(context.Background(), sender, batch, "0.8.0", "pulse-host"); err != nil {
+		t.Fatalf("sendBatch() second error = %v", err)
+	}
 
 	if len(sender.payloads) != 1 {
 		t.Fatalf("Send() calls = %d, want 1", len(sender.payloads))
+	}
+}
+
+func TestSendBatchReturnsAuthenticationError(t *testing.T) {
+	batch := &collector.Batch{}
+	batch.AddCore(model.CoreSample{Time: 123})
+	sender := &senderStub{err: transport.ErrAuthentication}
+
+	err := sendBatch(context.Background(), sender, batch, "0.9.0", "pulse-host")
+	if !errors.Is(err, transport.ErrAuthentication) {
+		t.Fatalf("sendBatch() error = %v, want ErrAuthentication", err)
+	}
+}
+
+func TestRunStopsOnAuthenticationError(t *testing.T) {
+	sender := &senderStub{err: transport.ErrAuthentication}
+
+	err := run(
+		context.Background(),
+		10*time.Millisecond,
+		"0.9.0",
+		"pulse-host",
+		sender,
+		[]collector.Collector{sampleCollector{}},
+	)
+	if !errors.Is(err, transport.ErrAuthentication) {
+		t.Fatalf("run() error = %v, want ErrAuthentication", err)
 	}
 }
 
