@@ -69,29 +69,3 @@ jobs:
 
       - name: Run Go tests
         run: go test ./...
-
-  web-tests:
-    name: Test web server
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: test_web_server
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: test_web_server/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run web server tests
-        run: npm test

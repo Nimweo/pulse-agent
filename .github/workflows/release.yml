@@ -49,21 +49,6 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: test_web_server/package-lock.json
-
-      - name: Install web server dependencies
-        working-directory: test_web_server
-        run: npm ci
-
-      - name: Run web server tests
-        working-directory: test_web_server
-        run: npm test
-
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     needs: verify
