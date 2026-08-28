@@ -18,10 +18,10 @@ type Client struct {
 	http *http.Client
 }
 
-func New(url string) *Client {
+func New(url string, timeout time.Duration) *Client {
 	return &Client{
 		url:  url,
-		http: &http.Client{Timeout: 10 * time.Second},
+		http: &http.Client{Timeout: timeout},
 	}
 }
 

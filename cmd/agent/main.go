@@ -9,30 +9,48 @@ import (
 	"time"
 
 	"github.com/nimweo/pulse-agent/internal/collector"
+	"github.com/nimweo/pulse-agent/internal/config"
 	"github.com/nimweo/pulse-agent/internal/model"
 	"github.com/nimweo/pulse-agent/internal/transport"
 )
 
 func main() {
+	cfg, err := config.Load(config.DefaultPath)
+	if err != nil {
+		slog.Error("failed to start agent", "err", err)
+		os.Exit(1)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	hostname, _ := os.Hostname()
-	client := transport.New("http://localhost:3000/ingest")
+	hostname := cfg.Agent.Hostname
+	if hostname == "" {
+		hostname, err = os.Hostname()
+		if err != nil {
+			slog.Error("failed to read hostname", "err", err)
+			os.Exit(1)
+		}
+	}
+
+	client := transport.New(
+		cfg.Server.URL,
+		time.Duration(cfg.Server.Timeout)*time.Second,
+	)
 	batch := &collector.Batch{}
 	core := collector.NewCore()
 
-	collectTick := time.NewTicker(time.Second)
+	collectTick := time.NewTicker(time.Duration(cfg.Intervals.Collect) * time.Second)
 	defer collectTick.Stop()
-	sendTick := time.NewTicker(10 * time.Second) // na test 10s, w produkcji 60s
+	sendTick := time.NewTicker(time.Duration(cfg.Intervals.Send) * time.Second)
 	defer sendTick.Stop()
 
-	slog.Info("agent wystartował")
+	slog.Info("agent started")
 
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("zamykanie")
+			slog.Info("shutting down")
 			return
 
 		case <-collectTick.C:
@@ -46,16 +64,16 @@ func main() {
 				continue
 			}
 			payload := model.Payload{
-				AgentVersion: "dev",
+				AgentVersion: cfg.Agent.Version,
 				Hostname:     hostname,
 				Core:         cs,
 				Points:       ps,
 			}
 			if err := client.Send(ctx, payload); err != nil {
 				slog.Error("send", "err", err, "dropped", len(cs)+len(ps))
-				continue // na razie gubimy — spool dopiszesz później
+				continue // Samples are dropped until disk spooling is implemented.
 			}
-			slog.Info("wysłano", "core", len(cs), "points", len(ps))
+			slog.Info("metrics sent", "core", len(cs), "points", len(ps))
 		}
 	}
 }
