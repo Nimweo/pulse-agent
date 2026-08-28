@@ -113,6 +113,12 @@ func validate(c model.Config) error {
 	if c.Intervals.Send <= 0 {
 		return errors.New("intervals.send must be greater than zero")
 	}
+	if c.Transport.MaxRetries < 0 {
+		return errors.New("transport.max_retries must not be negative")
+	}
+	if c.Transport.RetryBackoff < 0 {
+		return errors.New("transport.retry_backoff must not be negative")
+	}
 	if c.Collectors.System.Enabled && c.Collectors.System.Interval <= 0 {
 		return errors.New("collectors.system.interval must be greater than zero when system collection is enabled")
 	}

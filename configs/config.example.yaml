@@ -68,7 +68,7 @@ collectors:
 transport:
   # Enable gzip compression for outgoing requests
   compression: true
-  # Maximum retry attempts on send failure
+  # Maximum retry attempts after the initial send failure
   max_retries: 3
   # Retry backoff in seconds
   retry_backoff: 5

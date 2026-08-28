@@ -186,6 +186,41 @@ collectors:
 	}
 }
 
+func TestLoadRejectsNegativeTransportSettings(t *testing.T) {
+	tests := []struct {
+		name  string
+		from  string
+		to    string
+		field string
+	}{
+		{
+			name:  "maximum retries",
+			from:  "max_retries: 3",
+			to:    "max_retries: -1",
+			field: "transport.max_retries",
+		},
+		{
+			name:  "retry backoff",
+			from:  "retry_backoff: 5",
+			to:    "retry_backoff: -1",
+			field: "transport.retry_backoff",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writeConfig(t, strings.Replace(validConfig(""), tt.from, tt.to, 1))
+			_, err := Load(path)
+			if err == nil {
+				t.Fatal("Load() error = nil, want invalid transport setting error")
+			}
+			if !strings.Contains(err.Error(), tt.field) {
+				t.Fatalf("Load() error = %q, want %q", err, tt.field)
+			}
+		})
+	}
+}
+
 func writeConfig(t *testing.T, contents string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config.yaml")

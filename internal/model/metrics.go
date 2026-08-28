@@ -1,5 +1,7 @@
 package model
 
+const PayloadSchemaVersion = 1
+
 type CoreSample struct {
 	Time     int64   `json:"time"`
 	CPU      float64 `json:"cpu"`
@@ -18,9 +20,12 @@ type Point struct {
 }
 
 type Payload struct {
-	AgentVersion string        `json:"agent_version"`
-	Hostname     string        `json:"hostname"`
-	System       *SystemSample `json:"system,omitempty"`
-	Core         []CoreSample  `json:"core,omitempty"`
-	Points       []Point       `json:"points,omitempty"`
+	SchemaVersion int           `json:"schema_version"`
+	BatchID       string        `json:"batch_id"`
+	SentAt        int64         `json:"sent_at"`
+	AgentVersion  string        `json:"agent_version"`
+	Hostname      string        `json:"hostname"`
+	System        *SystemSample `json:"system,omitempty"`
+	Core          []CoreSample  `json:"core"`
+	Points        []Point       `json:"points"`
 }

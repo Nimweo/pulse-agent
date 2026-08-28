@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"log/slog"
@@ -67,11 +69,7 @@ func main() {
 		}
 	}
 
-	client, err := transport.New(
-		cfg.Server.BaseURL,
-		cfg.Server.APIKey,
-		time.Duration(cfg.Server.Timeout)*time.Second,
-	)
+	client, err := transport.New(cfg.Server, cfg.Transport)
 	if err != nil {
 		slog.Error("failed to configure API client", "err", err)
 		os.Exit(1)
@@ -131,20 +129,58 @@ func main() {
 			if system == nil && len(cs) == 0 && len(ps) == 0 {
 				continue
 			}
-			payload := model.Payload{
-				AgentVersion: version,
-				Hostname:     hostname,
-				System:       system,
-				Core:         cs,
-				Points:       ps,
+			payload, err := buildPayload(version, hostname, system, cs, ps)
+			if err != nil {
+				slog.Error("failed to create metric payload", "err", err)
+				continue
 			}
 			if err := client.Send(ctx, payload); err != nil {
-				slog.Error("send", "err", err, "dropped", len(cs)+len(ps))
+				slog.Error(
+					"failed to send metrics",
+					"batch_id", payload.BatchID,
+					"err", err,
+					"dropped", len(cs)+len(ps),
+				)
 				continue // Samples are dropped until disk spooling is implemented.
 			}
-			slog.Info("metrics sent", "core", len(cs), "points", len(ps))
+			slog.Info(
+				"metrics sent",
+				"batch_id", payload.BatchID,
+				"core", len(cs),
+				"points", len(ps),
+			)
 		}
 	}
+}
+
+func buildPayload(
+	agentVersion string,
+	hostname string,
+	system *model.SystemSample,
+	core []model.CoreSample,
+	points []model.Point,
+) (model.Payload, error) {
+	batchID := make([]byte, 16)
+	if _, err := rand.Read(batchID); err != nil {
+		return model.Payload{}, err
+	}
+	if core == nil {
+		core = []model.CoreSample{}
+	}
+	if points == nil {
+		points = []model.Point{}
+	}
+
+	return model.Payload{
+		SchemaVersion: model.PayloadSchemaVersion,
+		BatchID:       hex.EncodeToString(batchID),
+		SentAt:        time.Now().UnixMilli(),
+		AgentVersion:  agentVersion,
+		Hostname:      hostname,
+		System:        system,
+		Core:          core,
+		Points:        points,
+	}, nil
 }
 
 func runCollector(
