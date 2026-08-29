@@ -1,0 +1,76 @@
+Third-party notices for Pulse Agent
+===================================
+
+Pulse Agent is distributed under the Apache License 2.0. It includes or may
+link against the following third-party Go modules. These components remain
+available under their original licenses. When redistributing Pulse Agent,
+retain this file and the corresponding license and copyright notices.
+
+Runtime dependencies
+--------------------
+
+github.com/shirou/gopsutil/v4 v4.26.6
+  License: BSD-3-Clause
+  Copyright: WAKAYAMA Shirou and contributors
+  Source: https://github.com/shirou/gopsutil
+
+golang.org/x/sys v0.41.0
+  License: BSD-3-Clause
+  Copyright: The Go Authors
+  Source: https://go.googlesource.com/sys
+
+gopkg.in/yaml.v3 v3.0.1
+  License: MIT and Apache-2.0
+  Copyright: Canonical Ltd. and contributors
+  Source: https://github.com/go-yaml/yaml
+
+github.com/ebitengine/purego v0.10.0
+  License: Apache-2.0
+  Source: https://github.com/ebitengine/purego
+
+github.com/tklauser/numcpus v0.11.0
+  License: Apache-2.0
+  Source: https://github.com/tklauser/numcpus
+
+github.com/go-ole/go-ole v1.2.6
+  License: MIT
+  Copyright: Yasuhiro Matsumoto
+  Source: https://github.com/go-ole/go-ole
+
+github.com/yusufpapurcu/wmi v1.2.4
+  License: MIT
+  Copyright: Stack Exchange
+  Source: https://github.com/yusufpapurcu/wmi
+
+github.com/lufia/plan9stats
+  License: BSD-3-Clause
+  Copyright: KADOTA, Kyohei
+  Source: https://github.com/lufia/plan9stats
+
+github.com/power-devops/perfstat
+  License: MIT
+  Copyright: Power DevOps
+  Source: https://github.com/power-devops/perfstat
+
+github.com/tklauser/go-sysconf v0.3.16
+  License: BSD-3-Clause
+  Copyright: Tobias Klauser
+  Source: https://github.com/tklauser/go-sysconf
+
+Test and development dependencies
+----------------------------------
+
+github.com/stretchr/testify v1.11.1 — MIT
+  Source: https://github.com/stretchr/testify
+github.com/google/go-cmp v0.7.0 — BSD-3-Clause
+  Source: https://github.com/google/go-cmp
+github.com/davecgh/go-spew v1.1.1 — ISC
+  Source: https://github.com/davecgh/go-spew
+github.com/pmezard/go-difflib v1.0.0 — BSD-3-Clause
+  Source: https://github.com/pmezard/go-difflib
+gopkg.in/check.v1 — BSD-3-Clause
+  Source: https://github.com/go-check/check
+
+The complete license text for each dependency is included in that dependency's
+source distribution and is available at its source URL above. Version pins are
+recorded in go.mod and go.sum.
