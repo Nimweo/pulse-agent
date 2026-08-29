@@ -275,3 +275,7 @@ The process collector reports CPU and memory as separate top lists. A process ca
 ## License
 
 Pulse Agent is distributed under the [Apache License 2.0](LICENSE).
+
+You may modify, fork, and redistribute the project, including for commercial use. When distributing the project or a derivative work, retain [`NOTICE`](NOTICE), the license, and existing copyright notices. Please identify substantial changes as your own modifications and do not imply that Nimweo endorses a derived product.
+
+The upstream project is [Nimweo/pulse-agent](https://github.com/Nimweo/pulse-agent). The Apache license requires preservation of the attribution notices; it does not require publishing private modifications or using the Pulse Agent name for a derivative work.
