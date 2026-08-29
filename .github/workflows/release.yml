@@ -102,7 +102,7 @@ jobs:
             -o "${package_dir}/${binary}" \
             ./cmd/agent
 
-          cp LICENSE configs/config.example.yaml "$package_dir/"
+          cp LICENSE NOTICE THIRD-PARTY-NOTICES configs/config.example.yaml "$package_dir/"
 
           if [[ "$GOOS" == "linux" ]]; then
             cp install.sh "$package_dir/"

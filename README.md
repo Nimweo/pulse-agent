@@ -63,7 +63,7 @@ Use a custom API endpoint or pin a release:
 curl -fsSL https://raw.githubusercontent.com/Nimweo/pulse-agent/main/install.sh \
   | sudo bash -s -- \
       --base-url https://example.com/api/ \
-      --version 0.11.0
+      --version 0.11.1
 ```
 
 The installer creates:
@@ -193,7 +193,7 @@ The ingest request is a JSON payload (gzip when `transport.compression` is enabl
   "schema_version": 1,
   "batch_id": "a-unique-id",
   "sent_at": 1730000000000,
-  "agent_version": "0.11.0",
+  "agent_version": "0.11.1",
   "hostname": "server-01",
   "system": {},
   "core": [],
@@ -220,7 +220,7 @@ Each tagged release publishes archives for:
 | Windows | amd64, arm64 |
 | macOS | amd64, arm64 |
 
-Release archives include the binary and `configs/config.example.yaml`; Linux archives also include `install.sh`. Every release includes `checksums.txt`.
+Release archives include the binary, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES`, and `configs/config.example.yaml`; Linux archives also include `install.sh`. Every release includes `checksums.txt`.
 
 ## Development
 
@@ -275,6 +275,8 @@ The process collector reports CPU and memory as separate top lists. A process ca
 ## License
 
 Pulse Agent is distributed under the [Apache License 2.0](LICENSE).
+
+Third-party dependency attributions and license references are listed in [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES) and are included in every release archive.
 
 You may modify, fork, and redistribute the project, including for commercial use. When distributing the project or a derivative work, retain [`NOTICE`](NOTICE), the license, and existing copyright notices. Please identify substantial changes as your own modifications and do not imply that Nimweo endorses a derived product.
 
