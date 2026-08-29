@@ -87,7 +87,7 @@ The bundled default API base URL is `https://pulse.nimweo.dev/api/v1/`. Set `ser
 The PowerShell installer downloads the selected release from GitHub, verifies
 `checksums.txt`, installs `pulse-agent.exe`, creates a configuration under
 `C:\ProgramData\Nimweo\Pulse Agent`, and registers the native `PulseAgent`
-Windows Service. Run PowerShell as Administrator:
+Windows Service. Open PowerShell with **Run as administrator**, then execute:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass

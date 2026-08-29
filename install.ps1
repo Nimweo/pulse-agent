@@ -11,6 +11,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  throw "Pulse Agent installation requires an elevated PowerShell session. Open PowerShell with 'Run as administrator' and run the installer again."
+}
+
 $repository = "Nimweo/pulse-agent"
 $serviceName = "PulseAgent"
 $architecture = if ([Environment]::Is64BitOperatingSystem -and $env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
