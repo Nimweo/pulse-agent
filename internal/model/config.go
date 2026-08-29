@@ -13,9 +13,15 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	BaseURL string `yaml:"base_url"`
-	APIKey  string `yaml:"api_key"`
-	Timeout int    `yaml:"timeout"`
+	BaseURL      string             `yaml:"base_url"`
+	APIKey       string             `yaml:"api_key"`
+	Timeout      int                `yaml:"timeout"`
+	APIEndpoints APIEndpointsConfig `yaml:"api_endpoints"`
+}
+
+type APIEndpointsConfig struct {
+	Health string `yaml:"health"`
+	Ingest string `yaml:"ingest"`
 }
 
 type AgentConfig struct {

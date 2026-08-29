@@ -158,6 +158,39 @@ func TestSendUsesIngestEndpointAndOptionalAPIKey(t *testing.T) {
 	}
 }
 
+func TestClientSupportsCustomAPIEndpoints(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v2/status" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/v2/telemetry" {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client, err := New(model.ServerConfig{
+		BaseURL: server.URL,
+		Timeout: 1,
+		APIEndpoints: model.APIEndpointsConfig{
+			Health: "v2/status",
+			Ingest: "v2/telemetry",
+		},
+	}, model.TransportConfig{})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if err := client.CheckHealth(context.Background()); err != nil {
+		t.Fatalf("CheckHealth() error = %v", err)
+	}
+	if err := client.Send(context.Background(), model.Payload{}); err != nil {
+		t.Fatalf("Send() error = %v", err)
+	}
+}
+
 func TestNewRejectsInvalidBaseURL(t *testing.T) {
 	_, err := New(
 		model.ServerConfig{BaseURL: "pulse.test/api", Timeout: 1},

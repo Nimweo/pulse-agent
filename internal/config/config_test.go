@@ -150,6 +150,9 @@ func TestLoadParsesConfigWithOptionalAPIKey(t *testing.T) {
 	if cfg.Server.APIKey != "" {
 		t.Errorf("Server.APIKey = %q, want empty", cfg.Server.APIKey)
 	}
+	if cfg.Server.APIEndpoints.Health != "health" || cfg.Server.APIEndpoints.Ingest != "ingest" {
+		t.Errorf("Server.APIEndpoints = %#v", cfg.Server.APIEndpoints)
+	}
 	if cfg.Agent.Hostname != "pulse-host" {
 		t.Errorf("Agent.Hostname = %q", cfg.Agent.Hostname)
 	}
@@ -187,6 +190,19 @@ func TestLoadRejectsInvalidBaseURL(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "server.base_url") {
 		t.Fatalf("Load() error = %q, want server.base_url reference", err)
+	}
+}
+
+func TestLoadRejectsInvalidAPIEndpoints(t *testing.T) {
+	for _, endpoint := range []string{"https://example.test/health", "health?token=1", "//other-host/health"} {
+		t.Run(endpoint, func(t *testing.T) {
+			contents := strings.Replace(validConfig(""), "health: \"health\"", "health: \""+endpoint+"\"", 1)
+			path := writeConfig(t, contents)
+			_, err := Load(path)
+			if err == nil || !strings.Contains(err.Error(), "server.api_endpoints.health") {
+				t.Fatalf("Load() error = %v, want health endpoint validation error", err)
+			}
+		})
 	}
 }
 
@@ -365,6 +381,9 @@ server:
   base_url: "https://pulse.test/api/"
   api_key: "` + apiKey + `"
   timeout: 10
+  api_endpoints:
+    health: "health"
+    ingest: "ingest"
 agent:
   hostname: "pulse-host"
 intervals:

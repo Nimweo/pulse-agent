@@ -105,6 +105,12 @@ func validate(c model.Config) error {
 	if err := validateBaseURL(c.Server.BaseURL); err != nil {
 		return err
 	}
+	if err := validateAPIEndpoint("health", c.Server.APIEndpoints.Health); err != nil {
+		return err
+	}
+	if err := validateAPIEndpoint("ingest", c.Server.APIEndpoints.Ingest); err != nil {
+		return err
+	}
 	if c.Server.Timeout <= 0 {
 		return errors.New("server.timeout must be greater than zero")
 	}
@@ -195,5 +201,20 @@ func validateBaseURL(rawURL string) error {
 		return errors.New("server.base_url must not contain a query or fragment")
 	}
 
+	return nil
+}
+
+func validateAPIEndpoint(name string, rawEndpoint string) error {
+	endpoint := strings.TrimSpace(rawEndpoint)
+	if endpoint == "" {
+		return nil
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("server.api_endpoints.%s must be a relative path without query or fragment", name)
+	}
+	if strings.HasPrefix(endpoint, "//") {
+		return fmt.Errorf("server.api_endpoints.%s must not start with //", name)
+	}
 	return nil
 }

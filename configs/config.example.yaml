@@ -10,6 +10,10 @@ server:
   api_key: ""
   # Request timeout in seconds
   timeout: 10
+  # Relative paths appended to base_url; customize these for your API router.
+  api_endpoints:
+    health: "health"
+    ingest: "ingest"
 
 # Agent identification
 agent:

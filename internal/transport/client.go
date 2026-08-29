@@ -18,6 +18,11 @@ import (
 
 const maxRetryDelay = 30 * time.Second
 
+const (
+	defaultHealthEndpoint = "health"
+	defaultIngestEndpoint = "ingest"
+)
+
 var ErrAuthentication = errors.New("API authentication failed")
 
 type Client struct {
@@ -52,11 +57,19 @@ func New(server model.ServerConfig, transport model.TransportConfig) (*Client, e
 		return nil, fmt.Errorf("base URL must not contain a query or fragment")
 	}
 
-	healthURL, err := url.JoinPath(server.BaseURL, "health")
+	healthEndpoint := server.APIEndpoints.Health
+	if strings.TrimSpace(healthEndpoint) == "" {
+		healthEndpoint = defaultHealthEndpoint
+	}
+	ingestEndpoint := server.APIEndpoints.Ingest
+	if strings.TrimSpace(ingestEndpoint) == "" {
+		ingestEndpoint = defaultIngestEndpoint
+	}
+	healthURL, err := url.JoinPath(server.BaseURL, healthEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("build health URL: %w", err)
 	}
-	ingestURL, err := url.JoinPath(server.BaseURL, "ingest")
+	ingestURL, err := url.JoinPath(server.BaseURL, ingestEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("build ingest URL: %w", err)
 	}
