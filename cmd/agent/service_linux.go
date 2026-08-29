@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+func isWindowsService() (bool, error) { return false, nil }
+func runWindowsService() error        { return nil }
+
 func restartAgentService(ctx context.Context, name string) error {
 	path, err := exec.LookPath("systemctl")
 	if err != nil {
