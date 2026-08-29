@@ -82,7 +82,7 @@ func TestEnsureCreatesEmbeddedExampleWithoutOverwritingIt(t *testing.T) {
 	if !strings.Contains(string(contents), "configured: false") {
 		t.Fatalf("created configuration does not contain the setup guard")
 	}
-	if !strings.Contains(string(contents), `base_url: "https://pulse.test/api/"`) {
+	if !strings.Contains(string(contents), `base_url: "https://pulse.nimweo.dev/api/v1/"`) {
 		t.Fatalf("created configuration does not contain the default base URL")
 	}
 	if !strings.Contains(string(contents), "monitored_processes: []") {

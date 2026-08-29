@@ -5,7 +5,7 @@ configured: false
 # Server configuration
 server:
   # Base API URL. The agent appends operation-specific paths such as /health and /ingest.
-  base_url: "https://pulse.test/api/"
+  base_url: "https://pulse.nimweo.dev/api/v1/"
   # Optional API key for authentication
   api_key: ""
   # Request timeout in seconds

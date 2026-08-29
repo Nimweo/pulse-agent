@@ -63,7 +63,7 @@ Use a custom API endpoint or pin a release:
 curl -fsSL https://raw.githubusercontent.com/Nimweo/pulse-agent/main/install.sh \
   | sudo bash -s -- \
       --base-url https://example.com/api/ \
-      --version 0.11.1
+      --version 0.11.2
 ```
 
 The installer creates:
@@ -78,6 +78,8 @@ The installer creates:
 | `/var/lib/pulse-agent-updater/` | Updater state and lock files |
 
 The embedded example configuration is copied on first installation. It starts with `configured: false` and the agent will refuse to collect until you review the file and set it to `true`.
+
+The bundled default API base URL is `https://pulse.nimweo.dev/api/v1/`. Set `server.base_url` to your own API before enabling the agent.
 
 ## Configuration
 
@@ -193,7 +195,7 @@ The ingest request is a JSON payload (gzip when `transport.compression` is enabl
   "schema_version": 1,
   "batch_id": "a-unique-id",
   "sent_at": 1730000000000,
-  "agent_version": "0.11.1",
+  "agent_version": "0.11.2",
   "hostname": "server-01",
   "system": {},
   "core": [],

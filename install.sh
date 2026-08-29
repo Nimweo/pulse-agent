@@ -14,7 +14,7 @@ readonly SERVICE_DESTINATION="/etc/systemd/system/${SERVICE_NAME}"
 readonly UPDATE_SERVICE_DESTINATION="/etc/systemd/system/${UPDATE_SERVICE_NAME}"
 readonly UPDATE_TIMER_DESTINATION="/etc/systemd/system/${UPDATE_TIMER_NAME}"
 readonly UPDATE_STATE_DIRECTORY="/var/lib/pulse-agent-updater"
-readonly DEFAULT_BASE_URL="https://pulse.test/api/"
+readonly DEFAULT_BASE_URL="https://pulse.nimweo.dev/api/v1/"
 readonly GITHUB_REPOSITORY="Nimweo/pulse-agent"
 readonly GITHUB_URL="https://github.com/${GITHUB_REPOSITORY}"
 
@@ -49,7 +49,7 @@ Usage:
 Options:
   --api-key VALUE          API key sent as a Bearer token (optional).
   --api-key-file PATH      Read the API key from a file.
-  --base-url URL           API base URL (default: https://pulse.test/api/).
+  --base-url URL           API base URL (default: https://pulse.nimweo.dev/api/v1/).
   --version VERSION        Release version to install (default: latest).
   --overwrite-config       Replace an existing configuration from the template.
   -h, --help               Show this help message.
