@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version                 = "0.11.2"
+	version                 = "0.12.0"
 	authenticationExitCode  = 78
 	linuxSystemConfigPath   = "/etc/nimweo/pulse-agent/config.yaml"
 	linuxUpdateStatePath    = "/var/lib/pulse-agent-updater/update-state.json"
@@ -28,6 +28,20 @@ const (
 )
 
 func main() {
+	if runtime.GOOS == "windows" {
+		isService, err := isWindowsService()
+		if err != nil {
+			slog.Error("detect Windows service context", "err", err)
+			os.Exit(1)
+		}
+		if isService {
+			if err := runWindowsService(); err != nil {
+				slog.Error("Windows service stopped", "err", err)
+				os.Exit(exitCode(err))
+			}
+			return
+		}
+	}
 	if err := run(); err != nil {
 		code := exitCode(err)
 		slog.Error("agent stopped", "err", err, "exit_code", code)
@@ -46,6 +60,10 @@ func exitCode(err error) int {
 }
 
 func run() error {
+	return runWithContext(context.Background(), true)
+}
+
+func runWithContext(parent context.Context, handleSignals bool) error {
 	configFlag := flag.String("config", "", "path to the configuration file")
 	manualUpdate := flag.Bool("update", false, "check for and install the latest release")
 	automaticUpdate := flag.Bool(
@@ -117,8 +135,12 @@ func run() error {
 		return fmt.Errorf("load configuration from %q: %w", configPath, err)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	ctx := parent
+	if handleSignals {
+		var stop context.CancelFunc
+		ctx, stop = signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+	}
 
 	return app.Run(ctx, cfg, version)
 }

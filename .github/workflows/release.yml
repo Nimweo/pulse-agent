@@ -110,6 +110,10 @@ jobs:
           fi
 
           if [[ "$GOOS" == "windows" ]]; then
+            cp install.ps1 "$package_dir/"
+          fi
+
+          if [[ "$GOOS" == "windows" ]]; then
             (cd dist && zip -rq "${package}.zip" "$package")
             echo "archive=dist/${package}.zip" >> "$GITHUB_ENV"
           else

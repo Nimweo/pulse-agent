@@ -36,6 +36,7 @@ The API key is optional. When present, it is sent as `Authorization: Bearer <api
 - A reachable HTTP(S) endpoint implementing `/health` and `/ingest`.
 - Go 1.26 when building from source.
 - Linux service installation additionally requires systemd, `curl`, `tar`, and `sha256sum`.
+- Windows service installation requires PowerShell 5.1+ and administrator privileges.
 
 ## Installation on Linux
 
@@ -63,7 +64,7 @@ Use a custom API endpoint or pin a release:
 curl -fsSL https://raw.githubusercontent.com/Nimweo/pulse-agent/main/install.sh \
   | sudo bash -s -- \
       --base-url https://example.com/api/ \
-      --version 0.11.2
+      --version 0.12.0
 ```
 
 The installer creates:
@@ -80,6 +81,39 @@ The installer creates:
 The embedded example configuration is copied on first installation. It starts with `configured: false` and the agent will refuse to collect until you review the file and set it to `true`.
 
 The bundled default API base URL is `https://pulse.nimweo.dev/api/v1/`. Set `server.base_url` to your own API before enabling the agent.
+
+## Installation on Windows
+
+The PowerShell installer downloads the selected release from GitHub, verifies
+`checksums.txt`, installs `pulse-agent.exe`, creates a configuration under
+`C:\ProgramData\Nimweo\Pulse Agent`, and registers the native `PulseAgent`
+Windows Service. Run PowerShell as Administrator:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+irm https://raw.githubusercontent.com/Nimweo/pulse-agent/main/install.ps1 | iex
+```
+
+Install with a custom endpoint or API key:
+
+```powershell
+& .\install.ps1 `
+  -BaseUrl "https://example.com/api/v1/" `
+  -ApiKey "YOUR_API_KEY"
+```
+
+After installation, edit the generated `config.yaml`, set `configured: true`,
+and restart the service:
+
+```powershell
+Restart-Service PulseAgent
+Get-Service PulseAgent
+```
+
+The Windows installer is also included in Windows release archives. Windows
+binary replacement through the in-process updater is not enabled yet because
+the running executable must be replaced by an external helper; reinstall a
+newer release with `install.ps1` for updates.
 
 ## Configuration
 
@@ -195,7 +229,7 @@ The ingest request is a JSON payload (gzip when `transport.compression` is enabl
   "schema_version": 1,
   "batch_id": "a-unique-id",
   "sent_at": 1730000000000,
-  "agent_version": "0.11.2",
+  "agent_version": "0.12.0",
   "hostname": "server-01",
   "system": {},
   "core": [],
@@ -222,7 +256,7 @@ Each tagged release publishes archives for:
 | Windows | amd64, arm64 |
 | macOS | amd64, arm64 |
 
-Release archives include the binary, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES`, and `configs/config.example.yaml`; Linux archives also include `install.sh`. Every release includes `checksums.txt`.
+Release archives include the binary, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES`, and `configs/config.example.yaml`; Linux archives also include `install.sh`, while Windows archives include `install.ps1`. Every release includes `checksums.txt`.
 
 ## Development
 
