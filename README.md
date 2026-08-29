@@ -63,7 +63,7 @@ Use a custom API endpoint or pin a release:
 curl -fsSL https://raw.githubusercontent.com/Nimweo/pulse-agent/main/install.sh \
   | sudo bash -s -- \
       --base-url https://example.com/api/ \
-      --version 0.10.2
+      --version 0.11.0
 ```
 
 The installer creates:
@@ -193,7 +193,7 @@ The ingest request is a JSON payload (gzip when `transport.compression` is enabl
   "schema_version": 1,
   "batch_id": "a-unique-id",
   "sent_at": 1730000000000,
-  "agent_version": "0.10.2",
+  "agent_version": "0.11.0",
   "hostname": "server-01",
   "system": {},
   "core": [],
