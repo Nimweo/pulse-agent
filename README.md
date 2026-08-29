@@ -281,3 +281,7 @@ Third-party dependency attributions and license references are listed in [`THIRD
 You may modify, fork, and redistribute the project, including for commercial use. When distributing the project or a derivative work, retain [`NOTICE`](NOTICE), the license, and existing copyright notices. Please identify substantial changes as your own modifications and do not imply that Nimweo endorses a derived product.
 
 The upstream project is [Nimweo/pulse-agent](https://github.com/Nimweo/pulse-agent). The Apache license requires preservation of the attribution notices; it does not require publishing private modifications or using the Pulse Agent name for a derivative work.
+
+## Security
+
+Please see [SECURITY.md](SECURITY.md) for the vulnerability reporting process. Do not disclose credentials or security-sensitive details in public issues.
