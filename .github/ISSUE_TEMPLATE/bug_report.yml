@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible problem in Pulse Agent
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include API keys, credentials, or security-sensitive details.
+        For vulnerabilities, follow [SECURITY.md](../../SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Pulse Agent version
+      placeholder: "0.11.1"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+      placeholder: "Ubuntu 24.04, linux/amd64"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: List the smallest set of steps or configuration that reproduces the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant logs after removing secrets and personal data.
+      render: shell
