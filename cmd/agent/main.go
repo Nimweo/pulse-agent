@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version                 = "0.11.0"
+	version                 = "0.11.1"
 	authenticationExitCode  = 78
 	linuxSystemConfigPath   = "/etc/nimweo/pulse-agent/config.yaml"
 	linuxUpdateStatePath    = "/var/lib/pulse-agent-updater/update-state.json"
