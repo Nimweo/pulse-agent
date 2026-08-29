@@ -86,6 +86,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           VERSION: ${{ needs.verify.outputs.version }}
+          COMMIT: ${{ github.sha }}
+          BUILD_DATE: ${{ github.event.repository.updated_at }}
         run: |
           package="pulse-agent_${VERSION}_${GOOS}_${GOARCH}"
           binary="pulse-agent"
@@ -98,7 +100,7 @@ jobs:
 
           CGO_ENABLED=0 go build \
             -trimpath \
-            -ldflags="-s -w" \
+            -ldflags="-s -w -X main.buildVersion=${VERSION} -X main.buildCommit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
             -o "${package_dir}/${binary}" \
             ./cmd/agent
 

@@ -20,11 +20,21 @@ import (
 )
 
 const (
-	version                 = "0.12.3"
+	version                 = "0.12.4"
+	projectName             = "Pulse Agent"
+	projectAuthor           = "Nimweo"
+	projectRepository       = "github.com/Nimweo/pulse-agent"
+	projectLicense          = "Apache-2.0"
 	authenticationExitCode  = 78
 	linuxSystemConfigPath   = "/etc/nimweo/pulse-agent/config.yaml"
 	linuxUpdateStatePath    = "/var/lib/pulse-agent-updater/update-state.json"
 	defaultAgentServiceName = "pulse-agent.service"
+)
+
+var (
+	buildVersion = version
+	buildCommit  = "unknown"
+	buildDate    = "unknown"
 )
 
 func main() {
@@ -80,7 +90,7 @@ func runWithContext(parent context.Context, handleSignals bool) error {
 	showVersion := flag.Bool("version", false, "show the agent version")
 	flag.Parse()
 	if *showVersion {
-		fmt.Println(version)
+		fmt.Printf("%s %s\\nCreated by: %s\\nRepository: %s\\nLicense: %s\\nCommit: %s\\nBuild date: %s\\n", projectName, buildVersion, projectAuthor, projectRepository, projectLicense, buildCommit, buildDate)
 		return nil
 	}
 	selectedModes := 0
@@ -142,7 +152,7 @@ func runWithContext(parent context.Context, handleSignals bool) error {
 		defer stop()
 	}
 
-	return app.Run(ctx, cfg, version)
+	return app.Run(ctx, cfg, buildVersion)
 }
 
 func runUpdate(configFlag string, stateFlag string, automatic bool) error {
@@ -191,7 +201,7 @@ func runUpdate(configFlag string, stateFlag string, automatic bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	result, err := updater.NewClient().Apply(ctx, version, executable, configPath)
+	result, err := updater.NewClient().Apply(ctx, buildVersion, executable, configPath)
 	if err != nil {
 		return fmt.Errorf("update agent: %w", err)
 	}
