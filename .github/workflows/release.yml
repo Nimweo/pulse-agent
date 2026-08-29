@@ -53,6 +53,9 @@ jobs:
       - name: Check Linux installer syntax
         run: bash -n install.sh
 
+      - name: Check macOS installer syntax
+        run: bash -n install-macos.sh
+
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     needs: verify
@@ -109,6 +112,11 @@ jobs:
           if [[ "$GOOS" == "linux" ]]; then
             cp install.sh "$package_dir/"
             chmod 0755 "${package_dir}/install.sh"
+          fi
+
+          if [[ "$GOOS" == "darwin" ]]; then
+            cp install-macos.sh "$package_dir/"
+            chmod 0755 "${package_dir}/install-macos.sh"
           fi
 
           if [[ "$GOOS" == "windows" ]]; then

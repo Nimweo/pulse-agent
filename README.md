@@ -82,6 +82,24 @@ The embedded example configuration is copied on first installation. It starts wi
 
 The bundled default API base URL is `https://pulse.nimweo.dev/api/v1/`. Set `server.base_url` to your own API before enabling the agent.
 
+## Installation on macOS
+
+The macOS installer supports Intel and Apple Silicon and registers a native
+`launchd` service. Run it with administrator privileges:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nimweo/pulse-agent/main/install-macos.sh \\
+  | sudo bash -s -- --api-key-file /path/to/api-key
+```
+
+Configuration is stored in `/Library/Application Support/Nimweo/Pulse Agent/config.yaml`.
+After setting `configured: true`, the service can be managed with:
+
+```bash
+sudo launchctl print system/dev.nimweo.pulse-agent
+sudo launchctl kickstart -k system/dev.nimweo.pulse-agent
+```
+
 ## Installation on Windows
 
 The PowerShell installer downloads the selected release from GitHub, verifies
@@ -256,7 +274,7 @@ Each tagged release publishes archives for:
 | Windows | amd64, arm64 |
 | macOS | amd64, arm64 |
 
-Release archives include the binary, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES`, and `configs/config.example.yaml`; Linux archives also include `install.sh`, while Windows archives include `install.ps1`. Every release includes `checksums.txt`.
+Release archives include the binary, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES`, and `configs/config.example.yaml`; Linux archives include `install.sh`, macOS archives include `install-macos.sh`, and Windows archives include `install.ps1`. Every release includes `checksums.txt`.
 
 ## Development
 

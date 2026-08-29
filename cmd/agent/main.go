@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version                 = "0.12.4"
+	version                 = "0.12.5"
 	projectName             = "Pulse Agent"
 	projectAuthor           = "Nimweo"
 	projectRepository       = "github.com/Nimweo/pulse-agent"
