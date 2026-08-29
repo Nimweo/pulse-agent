@@ -80,8 +80,13 @@ try {
     New-Service -Name $serviceName -DisplayName "Pulse Agent" -Description "Pulse Agent system metrics collector" -BinaryPathName $binaryArguments -StartupType Automatic | Out-Null
   }
   & sc.exe failure $serviceName reset= 86400 actions= restart/5000/restart/30000/none/0 | Out-Null
-  Start-Service -Name $serviceName
-  Write-Host "Pulse Agent $releaseVersion installed successfully."
+  if ($config -match '(?m)^\s*configured:\s*true\s*$') {
+    Start-Service -Name $serviceName
+    Write-Host "Pulse Agent $releaseVersion installed and started successfully."
+  } else {
+    Write-Host "Pulse Agent $releaseVersion installed successfully, but the service was not started."
+    Write-Host "Review the configuration, set configured: true, then run: Start-Service -Name $serviceName"
+  }
   Write-Host "Configuration: $ConfigPath"
   Write-Host "Service status: Get-Service $serviceName"
   Write-Host "Edit configured: true after reviewing the configuration."
